@@ -1,0 +1,14 @@
+{
+  "name": "agentcraft-camera",
+  "version": "0.1.0",
+  "private": true,
+  "description": "On-demand 3D screenshots of the AgentCraft world (spectator bot + prismarine-viewer + headless Chromium)",
+  "type": "module",
+  "dependencies": {
+    "canvas": "3.2.3",
+    "mineflayer": "4.39.0",
+    "playwright-core": "1.64.0",
+    "prismarine-viewer": "1.33.0",
+    "rcon-client": "4.2.5"
+  }
+}

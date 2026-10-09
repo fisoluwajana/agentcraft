@@ -11,6 +11,7 @@ import { openDb, now, logEvent, kvGet } from '../lib/db.js';
 import { seasonMinute, seasonLengthMinutes, seasonDay, sleep } from '../lib/time.js';
 import { BudgetExceeded } from '../lib/budget.js';
 import { snapshotSurface, recordTrack } from '../lib/mapdata.js';
+import { requestShot } from '../lib/camera.js';
 import { ops, postAs } from '../lib/discord.js';
 import { SKILLS, SkillError, setupMovements, scanSurroundings, invCounts, withTimeout } from './skills.js';
 import { Memory } from './memory.js';
@@ -197,7 +198,7 @@ class Agent {
       this.lastOffTopicAsk = now();
       events.push('Post ONE short message in #off-topic now, not about the current job: a gripe, a joke, a theory about this world, gossip about someone, a random thought. In your own voice.');
     }
-    const others = Object.keys(b.players).filter((n) => n !== b.username && b.players[n].entity).map((n) => `${n} (${Math.round(b.players[n].entity.position.distanceTo(b.entity.position))}m)`);
+    const others = Object.keys(b.players).filter((n) => n !== b.username && n !== 'Camera' && b.players[n].entity).map((n) => `${n} (${Math.round(b.players[n].entity.position.distanceTo(b.entity.position))}m)`);
     const goals = this.mem.goals;
     this.lastDecision = now();
     const d = await decide({ agentId: ID, model: A.model, persona: P, agenda: this.agenda,
@@ -237,12 +238,20 @@ class Agent {
         try {
           const res = await withTimeout(SKILLS[step.skill].run(this.bot, step.args || {}, this.ctxApi()), 180_000, step.skill)
             .catch((e) => { try { this.bot.pathfinder.stop(); this.bot.stopDigging?.(); } catch { /* ignore */ } throw e; });
+          // A skill that ran but didn't really work (e.g. a shelter with 0 blocks placed) is a failure.
+          if (res.ok === false) throw new SkillError(res.summary);
           log(`✓ ${step.skill}: ${res.summary}`);
           this.failStreak = 0;
           this.push('done', `${step.skill}: ${res.summary}`);
           const gainedAny = res.gained && Object.values(res.gained).some((v) => v > 0);
           if (gainedAny || res.built || ['store', 'give', 'mark', 'craft', 'smelt'].includes(step.skill)) this.progress(res.summary);
           if (step.skill === 'explore') for (const f of scanSurroundings(this.bot)) this.ctxApi().discover(f);
+          if (res.built?.x != null) {
+            const b = res.built;
+            const half = Math.floor((b.size || 1) / 2);
+            requestShot({ x: b.x + half, y: b.y, z: b.z + half, size: b.size || 6, kind: 'build', by: P.name, channel: 'builds',
+              caption: `${P.name}'s new ${b.size ? `${b.size}×${b.size} ` : ''}${String(b.mat || '').replace(/_/g, ' ')} ${b.kind || 'shelter'} at ${b.x},${b.y},${b.z}` });
+          }
           if (res.built || step.skill.startsWith('build')) this.push('built', `finished: ${res.summary}. Post about it in #builds (not #general): what it is, where, and how you feel about it`, true);
         } catch (e) {
           const msg = e instanceof SkillError ? e.message : `${e.message}`.slice(0, 160);

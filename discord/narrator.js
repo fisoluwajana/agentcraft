@@ -1,3 +1,4 @@
+import { existsSync, readFileSync } from 'node:fs';
 // The Chronicler: a story-style recap of each day, posted to #the-chronicle after the
 // session ends. Uses the narrator model on the discounted "flex" tier (not real-time).
 import { config } from '../agents/lib/config.js';
@@ -42,7 +43,13 @@ export async function runChronicle(day) {
   // The day's map goes underneath as its own post (image + numbered legend). Never fails the Chronicle.
   try {
     const map = renderDayMap(day);
-    if (map) await postAs({ channel: config.discord.chronicleChannel, ...CHRONICLER, content: map.legend, files: [{ name: `map-${day}.png`, data: map.png, type: 'image/png' }] });
+    // Plus the day's latest build photo from the camera, if there is one.
+    const shot = openDb().prepare("SELECT path, caption FROM shots WHERE day=? AND kind='build' ORDER BY ts DESC LIMIT 1").get(day);
+    const files = [];
+    if (map) files.push({ name: `map-${day}.png`, data: map.png, type: 'image/png' });
+    if (shot && existsSync(shot.path)) files.push({ name: `highlight-${day}.png`, data: readFileSync(shot.path), type: 'image/png' });
+    const content = [map?.legend, shot ? `📷 Highlight: ${shot.caption}` : null].filter(Boolean).join('\n');
+    if (files.length) await postAs({ channel: config.discord.chronicleChannel, ...CHRONICLER, content, files });
   } catch (e) { console.error('[chronicle] map failed:', e.message); }
   return { usd: r.usd, chars: text.length };
 }

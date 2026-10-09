@@ -36,7 +36,7 @@ services:
       CUSTOM_SERVER: /data/paper.jar     # pinned Paper build, fetched + sha256-verified by server/fetch-paper.sh
       ONLINE_MODE: "FALSE"
       ENFORCE_WHITELIST: "TRUE"
-      WHITELIST: Mags,Tobin,Wren
+      WHITELIST: Mags,Tobin,Wren,Camera   # Camera = invisible spectator used for screenshots
       EXISTING_WHITELIST_FILE: SYNCHRONIZE
       SEED: "8675309"                    # chosen for gentle terrain + trees + water near spawn (scripts/seed-search.sh)
       DIFFICULTY: ${MC_DIFFICULTY:-peaceful}
@@ -78,3 +78,14 @@ services:
     <<: *runtime
     command: ["node", "ops/main.js"]
     environment: { <<: *env, RCON_HOST: minecraft }
+
+  # On-demand 3D screenshots (camera/camera.js): idle until a shot is requested, then a spectator
+  # logs in, frames the target and renders it in headless Chromium for ~15 s.
+  camera:
+    <<: *runtime
+    image: agentcraft-camera:latest
+    build: { context: ../.., dockerfile: camera/Dockerfile }
+    command: ["node", "camera/camera.js"]
+    mem_limit: 1200m
+    shm_size: 256m
+    environment: { <<: *env, RCON_HOST: minecraft, NODE_OPTIONS: --max-old-space-size=512 }

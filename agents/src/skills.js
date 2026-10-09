@@ -473,7 +473,9 @@ export const SKILLS = {
       pts.sort((u, v) => u.y - v.y);
       let placed = 0;
       for (const p of pts) placed += (await placeAt(bot, p, a.material).catch(() => false)) ? 1 : 0;
-      return { ok: placed > 0, summary: `placed ${placed}/${pts.length} ${a.material}` };
+      const mid = pts[Math.floor(pts.length / 2)];
+      // Bigger pieces (walls, floors) count as builds and get a photo in #builds.
+      return { ok: placed > 0, summary: `placed ${placed}/${pts.length} ${a.material}`, ...(placed >= 16 ? { built: { x: mid.x, y: mid.y, z: mid.z, size: 8, mat: a.material, kind: 'wall' } } : {}) };
     },
   },
 
