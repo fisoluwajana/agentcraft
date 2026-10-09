@@ -53,8 +53,25 @@ export class Chat {
     return base;
   }
 
+  // Catchphrase cooldown: if a catchphrase appeared in our last few messages, strip it from the
+  // start of this one (models love opening every message with the same signature line).
+  stripRepeatedCatchphrase(t) {
+    const phrases = (this.persona.catchphrases || []).map((c) => c.toLowerCase());
+    if (!phrases.length) return t;
+    const mine = openDb().prepare("SELECT text FROM chat WHERE author=? AND kind='message' ORDER BY id DESC LIMIT 8").all(this.name).map((r) => r.text.toLowerCase());
+    for (const c of phrases) {
+      const lead = new RegExp(`^\\s*${c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s,.:;!\\-–—]*`, 'i');
+      if (lead.test(t) && mine.some((m) => m.includes(c))) {
+        const rest = t.replace(lead, '').trim();
+        if (rest.length > 3) return this.persona.typingStyle?.case?.includes('lowercase') ? rest : rest[0].toUpperCase() + rest.slice(1);
+      }
+    }
+    return t;
+  }
+
   clean(text) {
     let t = String(text || '').trim();
+    t = this.stripRepeatedCatchphrase(t);
     t = t.replace(/^["'`]|["'`]$/g, '').replace(/^\s*\w+:\s*/, (m) => (m.toLowerCase().startsWith(this.name.toLowerCase()) ? '' : m));
     for (const b of this.banned) if (b && t.toLowerCase().includes(b)) return null;
     if (/[*_]{0,2}(as an ai|language model)/i.test(t)) return null;

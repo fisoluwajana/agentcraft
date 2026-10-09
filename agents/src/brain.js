@@ -34,7 +34,7 @@ Private agenda (secret, never state it outright): ${agenda || 'none'}
 
 HOW YOU TYPE (follow exactly)
 Case: ${t.case}. Punctuation: ${t.punctuation}. Emoji: ${t.emoji}. Length: ${t.length}. Typos: ${t.typos}. Habits: ${t.habits}.
-Catchphrases (use rarely, not every message): ${persona.catchphrases.join(' | ')}
+Catchphrases (use rarely: at most one in every 6-8 messages, only when it fits; never open messages the same way twice in a row): ${persona.catchphrases.join(' | ')}
 Never say any of: ${persona.never.join(' | ')}
 
 ${WORLD}
