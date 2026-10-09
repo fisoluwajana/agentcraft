@@ -10,6 +10,7 @@ x-runtime: &runtime
   environment: &env
     AWS_REGION: eu-north-1
     NODE_OPTIONS: --max-old-space-size=448
+    IGNORE_SEASON: ${IGNORE_SEASON:-0}   # 1 = run outside season hours (smoke tests)
     MC_HOST: minecraft
     RCON_PASSWORD: ${RCON_PASSWORD:?set by user-data}
   volumes:
