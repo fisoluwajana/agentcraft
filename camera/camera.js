@@ -56,7 +56,7 @@ export async function shoot({ x, y, z, size = 6, width = 1280, height = 720 }) {
     bot.entity.yaw = Math.atan2(-dx, -dz);
     bot.entity.pitch = Math.atan2(dy, Math.hypot(dx, dz));
     startViewer(bot, { port: PORT, firstPerson: true, viewDistance: 4 });
-    browser = await chromium.launch({ executablePath: CHROME, args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox'] });
+    browser = await chromium.launch({ executablePath: CHROME, args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox', '--disable-dev-shm-usage', '--renderer-process-limit=1'] });
     const page = await browser.newPage({ viewport: { width, height } });
     await page.goto(`http://127.0.0.1:${PORT}`, { waitUntil: 'load' });
     await page.waitForTimeout(10_000); // meshing + software rendering

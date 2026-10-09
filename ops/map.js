@@ -32,9 +32,9 @@ export function renderDayMap(day, { maxPx = 840 } = {}) {
   // Frame: everywhere the agents went today (and the POIs near it), padded, capped at 448 blocks.
   const xs = anchor.map((p) => p.x), zs = anchor.map((p) => p.z);
   let x0 = Math.min(...xs) - 40, x1 = Math.max(...xs) + 40, z0 = Math.min(...zs) - 40, z1 = Math.max(...zs) + 40;
-  const span = Math.min(Math.max(x1 - x0, z1 - z0, 160), 448);
+  const span = Math.round(Math.min(Math.max(x1 - x0, z1 - z0, 160), 448));
   const cx = Math.round((x0 + x1) / 2), cz = Math.round((z0 + z1) / 2);
-  x0 = cx - span / 2; z0 = cz - span / 2; x1 = x0 + span; z1 = z0 + span;
+  x0 = Math.round(cx - span / 2); z0 = Math.round(cz - span / 2); x1 = x0 + span; z1 = z0 + span; // whole blocks only
   const s = Math.max(1, Math.floor(maxPx / span));
   const W = span * s;
   const at = chunkLookup(db, x0, z0, x1, z1);
