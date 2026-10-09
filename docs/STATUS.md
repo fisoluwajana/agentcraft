@@ -11,7 +11,7 @@ Phase 0.3: waiting on the owner's one-batch answers (AWS bootstrap, network allo
 - Bootstrap scripts written: `infra/aws/bootstrap/`.
 
 ## Blocked
-- **Bedrock quotas are 0** for every on-demand model in eu-north-1 (requests and tokens per minute, marked non-adjustable); calls fail with "Too many tokens per day". AWS sets lower quotas on new accounts; re-check after account verification completes.
+- ~~Bedrock quotas~~ solved: use the `bedrock-mantle` endpoint (see DECISIONS L7). Still to confirm: mantle usage shows as credit-covered in Cost Explorer (check 2026-10-10).
 - Discord: owner to create the server and the System bot app, and store its token in Secrets Manager `agentcraft/discord`.
 - Bedrock: account verification pending (normally < 2 h). Re-test: `aws bedrock-runtime converse --profile agentcraft --region eu-north-1 --model-id openai.gpt-oss-20b-1:0 ...`
 

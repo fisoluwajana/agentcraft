@@ -32,6 +32,7 @@ Every decision made on the owner's behalf, with a one-line reason. Newest last w
 | L3 | Candidate models (London, $/1M tokens in/out): gpt-oss-120b 0.23/0.93, Qwen3 235B 2507 0.34/0.685, Mistral Large 3 0.775/2.325, Kimi K2.5 0.93/4.65, gpt-oss-20b 0.05/0.47, Nova Micro 0.049/0.196, Qwen3 Coder 480B 0.35/2.79. Final picks come from a benchmark. | Prices from the AWS Price List API (effective 2026-10-01); quality must be measured, not assumed. |
 | L4 | Different model family per agent | Voice variety for free, replacing the brief's "second provider" idea. |
 | L5 | "Flex" service tier (~50% off) for non-real-time work (Chronicle, recaps, summaries, relationship updates) instead of the Batch API | Same discount without Bedrock batch's minimum job size and S3 plumbing. |
+| L7 | All inference goes through the **bedrock-mantle** endpoint (OpenAI-compatible `/v1/chat/completions`, SigV4 service `bedrock-mantle`), not `bedrock-runtime` | This project's applied `bedrock-runtime` quotas are 0 and non-adjustable for every model, while mantle has separate quotas and works (verified 2026-10-09: gpt-oss-120b, Kimi K2.5, DeepSeek V3.2, GLM-5, Qwen3 32B, Qwen3 Coder 480B). Opening a support case via API needs a paid support plan. |
 | L6 | Short-context discipline is mandatory | Most AWS-sold models have no prompt caching on Bedrock, so every input token is billed at full price. |
 
 ## Discord
