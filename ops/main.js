@@ -115,6 +115,44 @@ function decisionNudge() {
   kvSet('decision_nudge_ts', now()); kvSet('decision_nudge_i', i + 1);
 }
 
+// ---------------------------------------------------------------- village radio
+// A few times each evening everyone goes "on air" for 5-10 minutes (radio/radio.js speaks the lines).
+function radioPlan(len, from) {
+  const plan = [];
+  let start = Math.max(20, from + 3);
+  for (let i = 0; i < 3; i++) {
+    const room = len - 25 - start;
+    if (room < 10) break;
+    start += Math.floor(Math.random() * Math.min(room - 10, 60));
+    const l = 5 + Math.floor(Math.random() * 6);
+    plan.push({ start, len: l });
+    start += l + 45;
+  }
+  return plan;
+}
+
+const RADIO_ON = (min) => `📻 You're ON AIR on the village radio with the others for the next ~${min} minutes. Talk on channel "radio": it's read aloud to listeners. Speak like you're chatting live: short spoken lines, no emojis, react to what the others just said, banter, gossip, today's news, pitches, grudges. Keep playing the game while you talk.`;
+
+function radioTick() {
+  const sm = seasonMinute();
+  const state = kvGet('radio');
+  if (sm == null) { if (state?.live) kvSet('radio', { live: false }); return; }
+  const day = seasonDay();
+  let plan = kvGet(`radio_plan:${day}`);
+  if (!plan) { plan = radioPlan(seasonLengthMinutes(), sm); kvSet(`radio_plan:${day}`, plan); log('radio plan', JSON.stringify(plan)); }
+  const cur = plan.find((p) => sm >= p.start && sm < p.start + p.len);
+  const session = cur && `${day}:${cur.start}`;
+  if (cur && state?.session !== session) {
+    const min = cur.start + cur.len - sm;
+    kvSet('radio', { live: true, until: now() + min * 60_000, session });
+    for (const a of config.agents) command(a.id, 'note', { text: RADIO_ON(min), urgent: true });
+    logEvent(day, null, 'radio_on', { session, min });
+  } else if (!cur && state?.live) {
+    kvSet('radio', { live: false, session: state.session });
+    for (const a of config.agents) command(a.id, 'note', { text: '📻 The radio is off air now. Back to normal chat channels.' });
+  }
+}
+
 // ---------------------------------------------------------------- global budget
 async function budgetCheck() {
   const s = spend({});
@@ -134,6 +172,7 @@ async function tick() {
   await watchdog().catch((e) => log('watchdog error', e.message));
   await closeVotes().catch((e) => log('votes error', e.message));
   try { if (process.env.IGNORE_SEASON === '1' || seasonMinute() != null) decisionNudge(); } catch (e) { log('nudge error', e.message); }
+  try { radioTick(); } catch (e) { log('radio error', e.message); }
   await budgetCheck().catch((e) => log('budget error', e.message));
 
   // Chronicle: once per season day, shortly after the session ends.

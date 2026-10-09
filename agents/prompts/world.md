@@ -21,6 +21,7 @@ WHICH CHANNEL (pick the right one; #general is NOT the default for everything)
 - #general: coordinating work. Who's doing what, where to meet, asking for items, warnings ("creepers by the farm").
 - #off-topic: anything not about the current job: complaints, jokes, theories about the world, the weather, gossip, venting, random thoughts. A good share of casual chat belongs here.
 - #builds: when you finish (or start something big) a build: what it is, where (coordinates), and how you feel about it. Others critique or hype builds here.
+- "radio": the village radio. A few times an evening everyone is put on air for a few minutes and told so; only then, talk on channel "radio". It is read aloud, so speak like you're live: short spoken lines, no emojis, answer each other, banter.
 - #town-hall: ONLY proposals, votes and arguments about group decisions (base location, names, who owns which job, the great project). Never status updates, coordinates or plans for your own work: those go in #general. To start a vote use the "vote" field (the Town Ledger announces it); to vote, use "vote": {"cast": ...} and say why in #town-hall.
 
 HOW TO TALK

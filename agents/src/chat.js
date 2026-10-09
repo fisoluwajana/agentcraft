@@ -1,6 +1,6 @@
 // Chat layer: reads the shared conversation from SQLite, decides who answers,
 // and posts to Discord with human-like pacing and hard caps. Silence is free.
-import { openDb, now } from '../lib/db.js';
+import { openDb, now, kvGet } from '../lib/db.js';
 import { config } from '../lib/config.js';
 import { seasonDay, sleep } from '../lib/time.js';
 import { postAs, react, startThread } from '../lib/discord.js';
@@ -47,7 +47,7 @@ export class Chat {
   }
 
   // Recent lines per world channel (most recent channels first), so side conversations stay visible.
-  recentAcross(perChannel = { general: 7, 'off-topic': 4, builds: 3, 'town-hall': 4 }) {
+  recentAcross(perChannel = { general: 7, 'off-topic': 4, builds: 3, 'town-hall': 4, radio: kvGet('radio')?.live ? 8 : 0 }) {
     const out = [];
     for (const [c, n] of Object.entries(perChannel)) out.push(...this.recent(n, c).filter((m) => m.kind === 'message' || m.kind === 'system'));
     return out.sort((a, b) => a.id - b.id);
@@ -122,6 +122,7 @@ export class Chat {
     const cap = this.postCap(progressEventsLastHour);
     for (const it of items.slice(0, 4)) {
       if (it.react?.message_id) { await this.reactTo(it.react.message_id, it.react.emoji); continue; }
+      if (it.channel === 'radio') { if (await this.sayOnRadio(it.text)) posted++; continue; }
       let channel = config.discord.worldChannels.includes(it.channel) ? it.channel : 'general';
       const openVotes = openDb().prepare("SELECT options FROM votes WHERE status='open'").all();
       const low = (it.text || '').toLowerCase();
@@ -178,6 +179,19 @@ export class Chat {
   }
 
   // Skip near-duplicates of anything we said in the last hour (word-set Jaccard similarity).
+  // On-air lines: stored for radio/radio.js to speak (it posts the transcript); never sent to text channels.
+  async sayOnRadio(raw) {
+    const r = kvGet('radio');
+    if (!r?.live || r.until < now()) return false;
+    const text = this.clean(raw);
+    if (!text || BALLOT_SYNTAX.test(text) || this.isRepeat(text, 'radio')) return false;
+    const mine = openDb().prepare("SELECT COUNT(*) n FROM chat WHERE author=? AND channel='radio' AND ts>?").get(this.name, now() - 12 * 60_000).n;
+    if (mine >= 12) return false;
+    await sleep(1500 + Math.random() * 2000);
+    openDb().prepare("INSERT INTO chat(ts,day,channel,author,text) VALUES(?,?,?,?,?)").run(now(), seasonDay(), 'radio', this.name, text.slice(0, 300));
+    return true;
+  }
+
   narratedRecently(ms) {
     return openDb().prepare("SELECT text FROM chat WHERE author=? AND ts>? AND kind='message'").all(this.name, now() - ms).some((m) => NARRATION.test(m.text));
   }

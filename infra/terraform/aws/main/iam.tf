@@ -53,6 +53,11 @@ data "aws_iam_policy_document" "host" {
     resources = ["*"]
   }
   statement {
+    sid       = "Speech" # village radio text-to-speech (radio/radio.js)
+    actions   = ["polly:SynthesizeSpeech", "polly:DescribeVoices"]
+    resources = ["*"]
+  }
+  statement {
     sid       = "Describe"
     actions   = ["ec2:DescribeVolumes", "ec2:DescribeInstances", "autoscaling:DescribeAutoScalingInstances"]
     resources = ["*"]

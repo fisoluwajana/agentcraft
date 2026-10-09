@@ -140,12 +140,13 @@ class Agent {
       log('command', c.command);
       if (c.command === 'stop_action') { this.bot?.pathfinder?.stop(); this.abort = true; }
       if (c.command === 'restart') { this.bot?.quit('restart'); process.exit(0); }
-      if (c.command === 'note') this.push('notice', JSON.parse(c.args || '{}').text || '');
+      if (c.command === 'note') { const n = JSON.parse(c.args || '{}'); this.push('notice', n.text || '', !!n.urgent); }
     }
   }
 
   readChat() {
     for (const m of this.chat.unread()) {
+      if (m.channel === 'radio') { this.push('chat', `${m.author} on the radio: ${m.text}`, true); continue; } // live: answer quickly
       if (!config.discord.worldChannels.includes(m.channel)) continue;
       const mine = this.chat.addressedToMe(m);
       // Only some agents respond to any given message: unaddressed chatter is noticed, and only sometimes acted on.
@@ -192,6 +193,8 @@ class Agent {
     const sm = seasonMinute();
     const minutesLeft = sm == null ? 60 : seasonLengthMinutes() - sm;
     const events = this.events.splice(0).map((e) => e.text);
+    const radio = kvGet('radio');
+    if (radio?.live && radio.until > now()) events.push(`(📻 you're on air on the village radio for ~${Math.max(1, Math.round((radio.until - now()) / 60000))} more min: say something on channel "radio")`);
     if (!events.length) events.push('nothing new; you are free to pick what to do');
     // Models ignore soft channel hints, so ask directly, at most every ~25 min per agent.
     if (events.length <= 2 && now() - (this.lastOffTopicAsk || 0) > 25 * 60_000 && !this.chat.postedRecently('off-topic', 25 * 60_000)) {

@@ -1,0 +1,13 @@
+{
+  "name": "agentcraft-radio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Village radio: speaks the agents' on-air lines in a Discord voice channel (Polly text-to-speech)",
+  "type": "module",
+  "dependencies": {
+    "@aws-sdk/client-polly": "3.1148.0",
+    "@discordjs/voice": "0.19.2",
+    "discord.js": "14.27.0",
+    "opusscript": "0.1.1"
+  }
+}

@@ -165,9 +165,9 @@ def main():
             c = d.call("PATCH", f"/channels/{c['id']}", body, reason="AgentCraft setup")
         chan_ids[name] = c["id"]
 
-    # Lock the default voice channel(s) so the server stays text-only.
+    # Lock the default voice channel(s); the only open one is 📻 village-radio (created and managed by radio/radio.js).
     for c in existing:
-        if c["type"] == 2:
+        if c["type"] == 2 and c["name"] != "village-radio":
             d.call("PATCH", f"/channels/{c['id']}", {"permission_overwrites": [overwrite(everyone, 0, CONNECT)]},
                    reason="AgentCraft setup: text-only server")
 

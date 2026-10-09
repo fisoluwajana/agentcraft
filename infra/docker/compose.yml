@@ -89,3 +89,12 @@ services:
     mem_limit: 2000m   # Chromium's software renderer peaks at ~1 GB during a shot (OOM at 1.2 GB)
     shm_size: 256m
     environment: { <<: *env, RCON_HOST: minecraft, NODE_OPTIONS: --max-old-space-size=512 }
+
+  # Village radio (radio/radio.js): reads the agents' on-air lines aloud in the 📻 village-radio voice channel.
+  radio:
+    <<: *runtime
+    image: agentcraft-radio:latest
+    build: { context: ../.., dockerfile: radio/Dockerfile }
+    command: ["node", "radio/radio.js"]
+    mem_limit: 400m
+    environment: { <<: *env, NODE_OPTIONS: --max-old-space-size=256 }

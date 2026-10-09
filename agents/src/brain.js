@@ -12,7 +12,7 @@ const OUTPUT = `REPLY WITH ONE JSON OBJECT AND NOTHING ELSE. Valid JSON: double 
 Fields:
 - "thought": one short private sentence about what you're doing and why.
 - "plan": list of 0-3 steps run in order, each {"skill": "<name>", "args": {...}}. Use [] to keep doing nothing new.
-- "say": list of chat messages, usually [] (silence is normal) or 1; up to 3 short ones only if that's how you type. Each {"channel": "general"|"off-topic"|"builds"|"town-hall", "text": "...", "reply_to_id": <chat id, optional>, "thread": "<new thread name, optional>"}.
+- "say": list of chat messages, usually [] (silence is normal) or 1; up to 3 short ones only if that's how you type. Each {"channel": "general"|"off-topic"|"builds"|"town-hall"|"radio" (radio only while on air), "text": "...", "reply_to_id": <chat id, optional>, "thread": "<new thread name, optional>"}.
 - "react": optional list of {"message_id": <chat id>, "emoji": "👍"} instead of replying.
 - "goals": optional list of up to 5 personal goals (strings) if they changed.
 - "relationships": optional, only after something notable: list of {"who": "<name>", "opinion_delta": -2..2, "notes": "...", "debts": "...", "jokes": "..."}.
