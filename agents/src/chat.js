@@ -188,7 +188,9 @@ export class Chat {
     const mine = openDb().prepare("SELECT COUNT(*) n FROM chat WHERE author=? AND channel='radio' AND ts>?").get(this.name, now() - 12 * 60_000).n;
     if (mine >= 12) return false;
     await sleep(1500 + Math.random() * 2000);
-    openDb().prepare("INSERT INTO chat(ts,day,channel,author,text) VALUES(?,?,?,?,?)").run(now(), seasonDay(), 'radio', this.name, text.slice(0, 300));
+    // Radio is spoken: keep it to about two sentences so nobody monologues.
+    const spoken = (text.match(/[^.!?]+[.!?]*/g) || [text]).slice(0, 2).join('').trim().slice(0, 220);
+    openDb().prepare("INSERT INTO chat(ts,day,channel,author,text) VALUES(?,?,?,?,?)").run(now(), seasonDay(), 'radio', this.name, spoken);
     return true;
   }
 

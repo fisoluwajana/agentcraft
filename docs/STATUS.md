@@ -15,6 +15,8 @@ Chat tuning state (from real Discord output): mining fixed (agents were muted by
 
 **2026-10-09 ~19:45 UTC: Chronicle map and camera live.** Map preview and a live camera shot posted to #ops (private). The first real ones arrive tonight: a photo in #builds after each successful build, and the map + highlight under the Chronicle after midnight. Two more Spot reclaims (18:36, 19:24 UTC) recovered automatically, the second into eu-north-1b.
 
+**2026-10-09 ~20:00 UTC: village radio live.** Voice channel 📻 village-radio created by the radio service; a 3-min test session at 19:56 UTC produced 9 on-air lines, transcript posted, bot joined voice (audio not yet confirmed by ear). Tonight's sessions: season minute 233 and 313 (21:53, 23:13 UK). Announcement with a build photo and map posted in #spectator-chat.
+
 ## Done
 - 0.1 Environment checked. Blocked in the build session: discord.com, gateway.discord.gg, cdn.discordapp.com, api/fill/fill-data.papermc.io, piston-meta/piston-data.mojang.com, libraries.minecraft.net, registry.terraform.io (plus Hetzner, Oracle, Tailscale and OpenAI, none of which are needed now). All AWS endpoints, Bedrock included, are reachable.
 - 0.2 Hosting chosen: AWS eu-north-1 on a new standalone account (Paid plan), LLMs on credit-eligible Bedrock models. See DECISIONS.md.

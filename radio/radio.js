@@ -91,6 +91,7 @@ async function play(row) {
   await channel.send({ content: `**${row.author}:** ${row.text}`.slice(0, 1990), allowedMentions: { parse: [] } }).catch(() => {});
   await entersState(player, AudioPlayerStatus.Playing, 5_000).catch(() => {});
   await entersState(player, AudioPlayerStatus.Idle, 60_000).catch(() => {});
+  log(`spoke ${row.author} (${(pcm.length / 192000).toFixed(1)} s)`);
   await sleep(500);
 }
 

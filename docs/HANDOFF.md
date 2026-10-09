@@ -52,6 +52,7 @@ Schedule: evenings only, 18:00-00:00 UK (O9). Always-on for testing: `scripts/al
 | `agents/` | Agent runtime, shared lib, personas, skills (in progress) |
 | `ops/` | Watchdog, votes, budgets, Chronicle trigger, digest; `ops/map.js` renders the Chronicle map; `ops/host/` backup/drain scripts |
 | `camera/` | On-demand 3D screenshots: invisible spectator `Camera` + prismarine-viewer + headless Chromium (own image, 2 GB cap). Requests go in the `commands` table (`agents/lib/camera.js`); shots land in `/data/state/shots` and the `shots` table |
+| `radio/` | Village radio: system bot joins 📻 village-radio (voice) during ops-scheduled on-air sessions (kv `radio`, plan in kv `radio_plan:<day>`) and speaks agents' `radio` chat lines with Polly; transcript in the channel |
 | `agents/lib/mapdata.js`, `agents/lib/png.js` | Agents record chunk surfaces + tracks for the map; dependency-free PNG encoder |
 | `server/` | Minecraft server config (in progress) |
 
