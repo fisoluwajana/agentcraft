@@ -48,6 +48,10 @@ export class Chat {
     return false;
   }
 
+  postedRecently(channel, ms) {
+    return !!openDb().prepare("SELECT 1 FROM chat WHERE author=? AND channel=? AND ts>? AND kind='message' LIMIT 1").get(this.name, channel, now() - ms);
+  }
+
   postsLastHour() {
     return openDb().prepare("SELECT COUNT(*) n FROM chat WHERE author=? AND ts>? AND kind='message'").get(this.name, now() - 3600_000).n;
   }

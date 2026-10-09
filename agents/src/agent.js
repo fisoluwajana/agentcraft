@@ -158,7 +158,11 @@ class Agent {
     const minutesLeft = sm == null ? 60 : seasonLengthMinutes() - sm;
     const events = this.events.splice(0).map((e) => e.text);
     if (!events.length) events.push('nothing new; you are free to pick what to do');
-    if (events.length <= 1 && Math.random() < 0.25) events.push('(quiet moment: if a stray thought, theory, complaint or joke comes to mind that is not about the current job, #off-topic is for that)');
+    // Models ignore soft channel hints, so ask directly, at most every ~25 min per agent.
+    if (events.length <= 2 && now() - (this.lastOffTopicAsk || 0) > 25 * 60_000 && !this.chat.postedRecently('off-topic', 25 * 60_000)) {
+      this.lastOffTopicAsk = now();
+      events.push('Post ONE short message in #off-topic now, not about the current job: a gripe, a joke, a theory about this world, gossip about someone, a random thought. In your own voice.');
+    }
     const others = Object.keys(b.players).filter((n) => n !== b.username && b.players[n].entity).map((n) => `${n} (${Math.round(b.players[n].entity.position.distanceTo(b.entity.position))}m)`);
     const goals = this.mem.goals;
     this.lastDecision = now();
@@ -204,7 +208,7 @@ class Agent {
           const gainedAny = res.gained && Object.values(res.gained).some((v) => v > 0);
           if (gainedAny || res.built || ['store', 'give', 'mark', 'craft', 'smelt'].includes(step.skill)) this.progress(res.summary);
           if (step.skill === 'explore') for (const f of scanSurroundings(this.bot)) this.ctxApi().discover(f);
-          if (res.built || step.skill.startsWith('build')) this.push('built', `finished: ${res.summary}. #builds is where people show builds off (if you feel like it)`, true);
+          if (res.built || step.skill.startsWith('build')) this.push('built', `finished: ${res.summary}. Post about it in #builds (not #general): what it is, where, and how you feel about it`, true);
         } catch (e) {
           const msg = e instanceof SkillError ? e.message : `${e.message}`.slice(0, 160);
           log(`✗ ${step.skill}: ${msg}`);
