@@ -86,6 +86,6 @@ services:
     image: agentcraft-camera:latest
     build: { context: ../.., dockerfile: camera/Dockerfile }
     command: ["node", "camera/camera.js"]
-    mem_limit: 1200m
+    mem_limit: 2000m   # Chromium's software renderer peaks at ~1 GB during a shot (OOM at 1.2 GB)
     shm_size: 256m
     environment: { <<: *env, RCON_HOST: minecraft, NODE_OPTIONS: --max-old-space-size=512 }

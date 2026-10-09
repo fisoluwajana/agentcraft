@@ -55,7 +55,7 @@ export async function shoot({ x, y, z, size = 6, width = 1280, height = 720 }) {
     const dx = x + 0.5 - cam[0], dy = y + 1 - (cam[1] + 1.62), dz = z + 0.5 - cam[2];
     bot.entity.yaw = Math.atan2(-dx, -dz);
     bot.entity.pitch = Math.atan2(dy, Math.hypot(dx, dz));
-    startViewer(bot, { port: PORT, firstPerson: true, viewDistance: 4 });
+    startViewer(bot, { port: PORT, firstPerson: true, viewDistance: 3 });
     browser = await chromium.launch({ executablePath: CHROME, args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox', '--disable-dev-shm-usage', '--renderer-process-limit=1'] });
     const page = await browser.newPage({ viewport: { width, height } });
     await page.goto(`http://127.0.0.1:${PORT}`, { waitUntil: 'load' });
