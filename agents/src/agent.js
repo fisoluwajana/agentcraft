@@ -138,11 +138,26 @@ class Agent {
     return openDb().prepare("SELECT COUNT(*) n FROM events WHERE agent=? AND kind='progress' AND ts>?").get(ID, now() - 3600_000).n;
   }
 
+  // Spread the daily budget over the active hours: if the last hour cost more than an hour's share,
+  // stretch the gap between decisions (1x-6x). Recomputed at most once a minute.
+  paceFactor() {
+    if (this._pace && now() - this._pace.ts < 60_000) return this._pace.f;
+    const hours = process.env.IGNORE_SEASON === '1' ? 24 : seasonLengthMinutes() / 60;
+    const share = config.budgets.perAgentDailyUsd / hours;
+    const lastHour = openDb().prepare('SELECT COALESCE(SUM(usd),0) u FROM llm_usage WHERE agent=? AND ts>?').get(ID, now() - 3600_000).u;
+    const f = Math.min(Math.max(lastHour / share, 1), 6);
+    if (!this._pace || Math.abs(f - this._pace.f) > 0.5) log(`pace x${f.toFixed(1)} (last hour $${lastHour.toFixed(3)}, share $${share.toFixed(3)}/h)`);
+    this._pace = { f, ts: now() };
+    return f;
+  }
+
   shouldDecide() {
     const gap = (now() - this.lastDecision) / 1000;
     const urgent = this.events.some((e) => e.urgent);
     // Back off after consecutive failed plans so a stuck agent doesn't burn a call every 20 s.
-    const minGap = config.budgets.minSecondsBetweenAgentCalls * Math.min(2 ** (this.failStreak || 0), 8);
+    const base = config.budgets.minSecondsBetweenAgentCalls;
+    const minGap = base * Math.min(2 ** (this.failStreak || 0), 8) * this.paceFactor();
+    if (urgent && gap >= base * Math.min(this.paceFactor(), 2)) return true; // someone spoke to us: answer soon
     if (gap < minGap) return false;
     if (urgent) return true;
     if (this.busy) return false;

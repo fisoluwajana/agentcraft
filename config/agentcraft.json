@@ -16,7 +16,7 @@
     "monthlyLlmUsd": 80,
     "monthlyHostingUsd": 20,
     "perAgentDailyUsd": 0.6,
-    "perAgentDailyTokens": 600000,
+    "perAgentDailyTokens": 4000000,
     "minSecondsBetweenAgentCalls": 20,
     "maxAgentCallsPerHour": 60,
     "creditFloorUsd": 10
