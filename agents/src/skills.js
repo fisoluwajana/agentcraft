@@ -159,11 +159,14 @@ async function placeNear(bot, itemName) {
   if (!item) throw new SkillError(`no ${itemName} to place`);
   await bot.equip(item, 'hand');
   const p = bot.entity.position.floored();
-  for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [2, 0], [0, 2]]) {
-    const below = bot.blockAt(p.offset(dx, -1, dz));
-    const spot = bot.blockAt(p.offset(dx, 0, dz));
-    if (below && below.boundingBox === 'block' && spot && spot.name === 'air') {
-      try { await bot.placeBlock(below, new Vec3(0, 1, 0)); return p.offset(dx, 0, dz); } catch { /* try next */ }
+  const spots = [];
+  for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) for (const dy of [0, 1, -1]) if (dx || dz) spots.push([dx, dy, dz]);
+  spots.sort((u, v) => Math.hypot(u[0], u[2]) - Math.hypot(v[0], v[2]));
+  for (const [dx, dy, dz] of spots) {
+    const below = bot.blockAt(p.offset(dx, dy - 1, dz));
+    const spot = bot.blockAt(p.offset(dx, dy, dz));
+    if (below && below.boundingBox === 'block' && spot && (spot.name === 'air' || spot.boundingBox === 'empty')) {
+      try { await bot.placeBlock(below, new Vec3(0, 1, 0)); return p.offset(dx, dy, dz); } catch { /* try next */ }
     }
   }
   throw new SkillError(`no room to place ${itemName}`);
@@ -238,6 +241,11 @@ export const SKILLS = {
     async run(bot, a) {
       const want = Math.min(Math.max(Number(a.count) || 8, 1), 32);
       const ids = blockIds(bot, a.block);
+      const needs = bot.registry.blocks[ids[0]]?.harvestTools;
+      if (needs && !bot.inventory.items().some((i) => needs[i.type])) {
+        const tool = bot.registry.items[Number(Object.keys(needs)[0])]?.name || 'a pickaxe';
+        throw new SkillError(`${a.block} needs ${tool.startsWith('wooden') ? 'a pickaxe' : `at least a ${tool}`} and you have none. Get logs, craft a crafting_table, then a wooden_pickaxe first`);
+      }
       const before = invCounts(bot);
       const tried = new Set();
       let failures = 0;

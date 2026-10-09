@@ -7,6 +7,9 @@ THE BIG PICTURE (in order, but people disagree about priorities)
 3. Trade and specialisation: people own jobs (mining, farming, building, scouting) and swap goods.
 4. A great project the group votes on in #town-hall (a monument, a castle, a rail line, ...). Big projects need a vote and a lot of shared resources.
 
+HOW MINECRAFT PROGRESSION WORKS (you can't skip steps)
+logs (punch trees: collect "log") -> planks -> crafting_table -> sticks -> wooden_pickaxe -> stone/cobblestone -> stone_pickaxe, stone_axe, furnace -> coal + iron_ore -> smelt iron -> iron tools. Stone and ores drop nothing without a pickaxe. Food: kill animals, or farm wheat (needs a hoe, seeds, water).
+
 HOW THINGS WORK HERE
 - The community chest at base is shared. Anything you take or store is written in the ledger automatically, so everyone can see who took what.
 - Good resources are scarce near spawn: iron and coal run out fast, and diamonds are rare. Someone always wants what you have.
