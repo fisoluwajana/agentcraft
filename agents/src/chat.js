@@ -123,7 +123,9 @@ export class Chat {
       const sinceLast = now() - this.lastPostTs();
       if (this.postsLastHour() >= cap) { this.drop('hourly cap', text); break; }
       if (this.postsSince(now() - 600_000) >= 6) { this.drop('burst', text); break; }
-      if (!it.reply_to_id && sinceLast < gapMs) { this.drop(`gap ${Math.round(sinceLast / 1000)}s`, text); continue; }
+      const others = config.agents.map((a) => a.id).filter((n) => n !== this.id);
+      const conversational = it.reply_to_id || /\?\s*$/.test(text) || others.some((n) => new RegExp(`\\b${n}\\b`, 'i').test(text));
+      if (!conversational && sinceLast < gapMs) { this.drop(`gap ${Math.round(sinceLast / 1000)}s`, text); continue; }
       // Human pacing: think, then type.
       const typing = Math.min(text.length / config.discord.typingCharsPerSecond, 14);
       await sleep((config.discord.minGapSeconds + Math.random() * 4 + typing) * 1000);
