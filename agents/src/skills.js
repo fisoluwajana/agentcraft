@@ -340,6 +340,12 @@ export const SKILLS = {
       const ids = blockIds(bot, a.block);
       const needs = bot.registry.blocks[ids[0]]?.harvestTools;
       if (needs && !bot.inventory.items().some((i) => needs[i.type])) {
+        // A player would just make the tool: try the cheapest pickaxe that works from what we carry.
+        const pick = Object.keys(needs).map((id) => bot.registry.items[Number(id)]?.name).filter(Boolean)
+          .sort((x, y) => ['wooden', 'stone', 'iron', 'diamond', 'netherite', 'golden'].findIndex((m) => x.startsWith(m)) - ['wooden', 'stone', 'iron', 'diamond', 'netherite', 'golden'].findIndex((m) => y.startsWith(m)));
+        for (const t of pick.slice(0, 2)) { try { await craft(bot, { item: t, count: 1 }); break; } catch (e) { if (process.env.DEBUG_TUNNEL) console.log('autocraft', t, e.message); } }
+      }
+      if (needs && !bot.inventory.items().some((i) => needs[i.type])) {
         const tool = bot.registry.items[Number(Object.keys(needs)[0])]?.name || 'a pickaxe';
         throw new SkillError(`${a.block} needs ${tool.startsWith('wooden') ? 'a pickaxe' : `at least a ${tool}`} and you have none. Get logs, craft a crafting_table, then a wooden_pickaxe first`);
       }

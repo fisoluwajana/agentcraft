@@ -41,6 +41,8 @@ Read this file and DECISIONS.md, then check `env | grep ^AWS_` and `aws sts get-
 ## Known issues / to verify
 - Craft/build with the wrong wood type ("oak_planks" while holding birch) is now mapped to the wood held.
 - Ideas backlog (owner asked, not started): screenshots via prismarine-viewer for #builds and the Chronicle (test 1.21.4 support first); BlueMap/squaremap static web map on S3 for spectators. Not recommended: images in agent decisions (cost ~+1-1.5k tokens each, little value).
+- Live 15:23-15:30 UTC: all four channels in use (#off-topic, #builds post from Tobin, a vote cast in #town-hall). Wren hit the 180 s skill timeout once collecting logs.
+- Local probes need `RCON_HOST=<mc-seed container IP>` and `RCON_PASSWORD` from the container's server.properties, or the craft fallback fails with ENOTFOUND.
 - Collect now tunnels to buried ore (P12); watch for agents getting stuck in tunnels or drowning (water/lava checks are in place).
 - Smelting uses furnace windows; may hit the same Mineflayer window bug as crafting tables. Check in the soak test; add an RCON fallback if so.
 - Paper says 'Connection throttled' when agents connect within ~4 s of each other; agents retry after 15 s. Consider `connection-throttle: -1` in bukkit.yml.

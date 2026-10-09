@@ -8,9 +8,9 @@ const bot = mineflayer.createBot({ host: '127.0.0.1', port: 25566, username: 'Co
 bot.loadPlugin(pf.pathfinder); bot.loadPlugin(toolPlugin.plugin);
 const rc = (c) => execSync(`docker exec mc-seed rcon-cli "${c}"`).toString();
 bot.once('spawn', async () => {
-  setupMovements(bot); rc('whitelist off'); rc('tp CollectTest 44 66 96'); rc('clear CollectTest'); rc('give CollectTest stone_pickaxe 1');
-  await new Promise((r) => setTimeout(r, 1500));
-  for (const [block, count] of [['stone', 6], ['coal_ore', 3], ['iron_ore', 2]]) {
+  setupMovements(bot); rc('whitelist off'); rc('tp CollectTest 44 66 96'); rc('clear CollectTest'); rc('give CollectTest oak_log 3');
+  await new Promise((r) => setTimeout(r, 3000)); console.log('inv', bot.inventory.items().map((i) => i.name + 'x' + i.count).join(','));
+  for (const [block, count] of [['stone', 4]]) {
     const t = Date.now();
     try { const r = await SKILLS.collect.run(bot, { block, count }); console.log('OK', block, r.summary, `${((Date.now() - t) / 1000).toFixed(0)}s`); }
     catch (e) { console.log('FAIL', block, e.message, `${((Date.now() - t) / 1000).toFixed(0)}s`); }
