@@ -6,6 +6,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import mineflayer from 'mineflayer';
+import { Vec3 } from 'vec3';
 import { Rcon } from 'rcon-client';
 import { chromium } from 'playwright-core';
 import { config } from '../agents/lib/config.js';
@@ -38,21 +39,51 @@ function connect() {
   });
 }
 
+// Count what blocks the view: anything solid or leafy on the straight line from the eye to the subject.
+function obstruction(bot, from, to) {
+  let n = 0;
+  const steps = Math.ceil(Math.hypot(to[0] - from[0], to[1] - from[1], to[2] - from[2]) * 2);
+  for (let i = 2; i < steps - 2; i++) {
+    const t = i / steps;
+    const b = bot.world.getBlock(new Vec3(Math.floor(from[0] + (to[0] - from[0]) * t), Math.floor(from[1] + (to[1] - from[1]) * t), Math.floor(from[2] + (to[2] - from[2]) * t)));
+    if (b && b.name !== 'air' && b.name !== 'cave_air' && !b.name.includes('water') && b.boundingBox !== 'empty') n += b.name.includes('leaves') ? 1 : 2;
+    else if (b && b.name.includes('leaves')) n += 1;
+  }
+  return n;
+}
+
+// Three-quarter views from 8 directions at two heights; first the clearest, then the nicest angle.
+function bestViewpoint(bot, x, y, z, size) {
+  const d = Math.max(8, size * 1.4);
+  const target = [x + 0.5, y + 1, z + 0.5];
+  const cands = [];
+  for (let k = 0; k < 8; k++) for (const h of [Math.max(10, size * 1.6), Math.max(16, size * 2.4)]) {
+    const a = (k / 8) * Math.PI * 2 + Math.PI / 8;
+    const pos = [x + Math.cos(a) * d, y + h, z + Math.sin(a) * d];
+    const eye = [pos[0], pos[1] + 1.62, pos[2]];
+    const blocked = bot.world.getBlock(new Vec3(Math.floor(pos[0]), Math.floor(eye[1]), Math.floor(pos[2])));
+    const inside = blocked && blocked.boundingBox === 'block' ? 50 : 0;
+    cands.push({ pos, score: obstruction(bot, eye, target) + inside + (h > 12 ? 1 : 0) });
+  }
+  cands.sort((p, q) => p.score - q.score);
+  return cands[0].pos;
+}
+
 /** Frame a target from above and to the side; `size` is roughly how big the subject is in blocks. */
 export async function shoot({ x, y, z, size = 6, width = 1280, height = 720 }) {
   const bot = await connect();
   let browser;
   try {
+    bot.physicsEnabled = false; // Mineflayer has no spectator flight: with physics on the camera falls
     await rcon(`gamemode spectator ${NAME}`);
-    // Steep three-quarter view from the south-west so trees in front don't hide the subject.
-    const d = Math.max(8, size * 1.4);
-    const cam = [x - d * 0.7, y + Math.max(10, size * 1.6), z + d];
-    await rcon(`tp ${NAME} ${cam.map((v) => v.toFixed(1)).join(' ')}`);
-    await sleep(4000); // chunks around the new position
-    // Mineflayer has no spectator flight: with physics on, the camera would fall and reset its view.
-    bot.physicsEnabled = false;
-    bot.entity.position.set(cam[0], cam[1], cam[2]);
+    // Load the chunks around the subject, pick the viewpoint with the clearest line of sight, go there.
+    await rcon(`tp ${NAME} ${x} ${y + 30} ${z}`);
+    await sleep(4000);
+    const cam = bestViewpoint(bot, x, y, z, size);
+    await rcon(`tp ${NAME} ${cam.map((v) => v.toFixed(2)).join(' ')} facing ${x + 0.5} ${y + 1} ${z + 0.5}`);
+    await sleep(1500);
     const dx = x + 0.5 - cam[0], dy = y + 1 - (cam[1] + 1.62), dz = z + 0.5 - cam[2];
+    bot.entity.position.set(cam[0], cam[1], cam[2]);
     bot.entity.yaw = Math.atan2(-dx, -dz);
     bot.entity.pitch = Math.atan2(dy, Math.hypot(dx, dz));
     startViewer(bot, { port: PORT, firstPerson: true, viewDistance: 3 });
