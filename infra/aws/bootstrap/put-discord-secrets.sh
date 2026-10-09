@@ -2,10 +2,10 @@
 # Stores the Discord bot tokens and server ID in AWS Secrets Manager (secret: agentcraft/discord).
 # Tokens are read with hidden input and never appear in shell history, process arguments or the chat.
 #
-# Run in AWS CloudShell (eu-west-1) as root/admin of the AgentCraft account:
+# Run in AWS CloudShell (eu-north-1) as root/admin of the AgentCraft account:
 #   bash agentcraft/infra/aws/bootstrap/put-discord-secrets.sh
 set -euo pipefail
-export AWS_DEFAULT_REGION="eu-west-1" AWS_PAGER=""
+export AWS_DEFAULT_REGION="eu-north-1" AWS_PAGER=""
 SECRET_ID="agentcraft/discord"
 
 read -rp  "Discord server (guild) ID: " GUILD_ID
