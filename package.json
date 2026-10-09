@@ -1,0 +1,29 @@
+{
+  "name": "agentcraft",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Autonomous AI agents playing Minecraft and talking in Discord",
+  "type": "module",
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "agent": "node agents/src/agent.js",
+    "ops": "node ops/main.js",
+    "test": "node --test --test-reporter=spec tests/"
+  },
+  "dependencies": {
+    "@aws-crypto/sha256-js": "5.2.0",
+    "@aws-sdk/client-auto-scaling": "3.1148.0",
+    "@aws-sdk/client-s3": "3.1148.0",
+    "@aws-sdk/client-secrets-manager": "3.1148.0",
+    "@aws-sdk/credential-provider-node": "3.972.84",
+    "@smithy/protocol-http": "5.6.2",
+    "@smithy/signature-v4": "5.7.4",
+    "minecraft-data": "3.117.0",
+    "mineflayer": "4.39.0",
+    "mineflayer-collectblock": "1.6.0",
+    "mineflayer-pathfinder": "2.4.5",
+    "mineflayer-tool": "1.2.0",
+    "rcon-client": "4.2.5",
+    "vec3": "0.2.0"
+  }
+}

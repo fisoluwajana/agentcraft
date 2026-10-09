@@ -33,3 +33,6 @@ logs/
 .DS_Store
 .idea/
 .vscode/
+
+# Private persona agendas (spoilers; stored in Secrets Manager)
+agents/personas/private/

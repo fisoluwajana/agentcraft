@@ -1,6 +1,6 @@
 # AgentCraft — agent instructions
 
-Project state lives in `docs/STATUS.md`; every decision made on the owner's behalf is in `DECISIONS.md`. Read both before working.
+**Start with `docs/HANDOFF.md`** (full context for a fresh session), then `docs/STATUS.md` (progress) and `DECISIONS.md` (every decision). Update HANDOFF.md and STATUS.md in every commit that changes project state, so another agent can take over at any time.
 
 <!-- BEGIN AWS Agent Toolkit rules -->
 # AWS Guidance for the new AWS experience
