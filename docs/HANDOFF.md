@@ -50,7 +50,9 @@ Schedule: evenings only, 18:00-00:00 UK (O9). Always-on for testing: `scripts/al
 | `infra/docker/` | docker compose (in progress) |
 | `discord/setup/setup_server.py` | Idempotent server setup (roles, channels, permissions, webhooks, invite). Already run. |
 | `agents/` | Agent runtime, shared lib, personas, skills (in progress) |
-| `ops/` | Watchdog, kill switch, digest, backups (in progress) |
+| `ops/` | Watchdog, votes, budgets, Chronicle trigger, digest; `ops/map.js` renders the Chronicle map; `ops/host/` backup/drain scripts |
+| `camera/` | On-demand 3D screenshots: invisible spectator `Camera` + prismarine-viewer + headless Chromium (own image, 2 GB cap). Requests go in the `commands` table (`agents/lib/camera.js`); shots land in `/data/state/shots` and the `shots` table |
+| `agents/lib/mapdata.js`, `agents/lib/png.js` | Agents record chunk surfaces + tracks for the map; dependency-free PNG encoder |
 | `server/` | Minecraft server config (in progress) |
 
 ## 7. How to resume

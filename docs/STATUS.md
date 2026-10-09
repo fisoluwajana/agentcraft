@@ -13,6 +13,8 @@ Earlier: host `i-0cb599210330eab12` ran all three agents (always-on). Backup to 
 
 Chat tuning state (from real Discord output): mining fixed (agents were muted by the progress throttle while mining failed), catchphrase cooldown, reworded-repeat filter, no-narration rule. Channel spread was still poor (last 3 h: 37 #general, 2 #town-hall, 0 #off-topic/#builds, 0 votes), so #off-topic and #builds nudges are now direct instructions (D6). Silences were the hourly post cap being spent in bursts; posts are now paced (D7). Agent logs show `held back (reason)` for every dropped line. Decisions are paced to the daily budget (D8); agent logs show `pace xN`. Check counts with the node/sqlite one-liner in HANDOFF.
 
+**2026-10-09 ~19:45 UTC: Chronicle map and camera live.** Map preview and a live camera shot posted to #ops (private). The first real ones arrive tonight: a photo in #builds after each successful build, and the map + highlight under the Chronicle after midnight. Two more Spot reclaims (18:36, 19:24 UTC) recovered automatically, the second into eu-north-1b.
+
 ## Done
 - 0.1 Environment checked. Blocked in the build session: discord.com, gateway.discord.gg, cdn.discordapp.com, api/fill/fill-data.papermc.io, piston-meta/piston-data.mojang.com, libraries.minecraft.net, registry.terraform.io (plus Hetzner, Oracle, Tailscale and OpenAI, none of which are needed now). All AWS endpoints, Bedrock included, are reachable.
 - 0.2 Hosting chosen: AWS eu-north-1 on a new standalone account (Paid plan), LLMs on credit-eligible Bedrock models. See DECISIONS.md.
