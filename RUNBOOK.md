@@ -10,6 +10,7 @@ cd /opt/agentcraft/infra/docker && sudo docker compose ps
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
+| #ops: "agent X stopped heartbeating" and it doesn't recover in ~5 min | Agent process hung (a crash would restart by itself) | `scripts/host-run.sh 'cd /opt/agentcraft/infra/docker && docker compose restart agent-X'` (tested 2026-10-09 by pausing a container: alert after 4 min). |
 | Everything stopped; #ops says "stopped by the credit guard" | Free Tier credit < $10, plan not ACTIVE, or a budget hit 100 % | This is by design (never spend real money). Decide in AWS Settings (upgrade the plan or accept the stop), then `scripts/resume.sh`. |
 | Host doesn't start at 17:45 | Kill switch or guard suspended `ScheduledActions`, or no Spot capacity | `aws autoscaling describe-scaling-activities --auto-scaling-group-name agentcraft-host`. Resume with `scripts/resume.sh`. On capacity errors, add instance types to `var.instance_types`. |
 | Boot log stuck at "waiting for the previous host to release" the world volume | Previous instance didn't detach the volume (drain failed) | Check the old instance is terminated; `aws ec2 detach-volume --volume-id <world> --force` only if it's gone. |

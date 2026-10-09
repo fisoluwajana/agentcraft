@@ -36,7 +36,7 @@ async function watchdog() {
     const name = config.agents.find((x) => x.id === a.id) && a.id;
     const staleMin = (now() - (s.ts || 0)) / 60000;
     if (staleMin > 3) { // process not heartbeating
-      if (!recovery[a.id] || recovery[a.id].stage !== 'dead') { await ops(`💥 agent **${a.id}** stopped heartbeating ${Math.round(staleMin)} min ago; container restart policy will retry.`); recovery[a.id] = { stage: 'dead', since: now() }; }
+      if (!recovery[a.id] || recovery[a.id].stage !== 'dead') { await ops(`💥 agent **${a.id}** stopped heartbeating ${Math.round(staleMin)} min ago. A crash restarts by itself; if it's hung, see RUNBOOK (restart agent-${a.id}).`); recovery[a.id] = { stage: 'dead', since: now() }; }
       continue;
     }
     const idleMin = Math.min(now() - (s.last_move_ts || now()), now() - (s.last_progress_ts || now())) / 60000;
