@@ -16,6 +16,12 @@ Phase 0.3: waiting on the owner's one-batch answers (AWS bootstrap, network allo
 ## Discord
 Server set up 2026-10-09. Spectator invite: https://discord.gg/pHYaWcVD2A
 
+## Phase 1 progress
+- [x] Shared lib: `agents/lib/` config, time, db (node:sqlite), llm (mantle SigV4 + cost accounting), budget, discord (webhooks + bot REST). LLM client verified live.
+- [ ] Agent runtime (skills, brain, memory, personas)
+- [ ] Server + compose + local integration test (local Paper 1.21.11 container `mc-dev` running in build container)
+- [ ] Terraform + plan/cost for owner approval
+
 ## Next
 1. AWS login done (profile `agentcraft`, eu-north-1, Free plan, $100 credit). Owner: Discord bots, network allowlist, checklist answers.
 2. Verify the credentials (`aws sts get-caller-identity`) and validate the policies with Access Analyzer.

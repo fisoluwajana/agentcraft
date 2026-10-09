@@ -62,6 +62,8 @@ Budgets £15 hosting / £60 LLM per month (~$20 / ~$80) · stop everything when 
 - Free-plan SCPs deny some services (Redshift, Organizations, etc.); console wizards may show harmless errors.
 - PaperMC API v2 is gone (410); use `fill.papermc.io/v3`.
 - The Docker daemon in the build container sometimes stops; restart with `dockerd &`.
+- The build container has **invalid AWS_ACCESS_KEY_ID/SECRET env vars injected by the environment** (not set by the owner). For local Node runs: `unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY; eval "$(aws configure export-credentials --profile agentcraft --format env)"`. The JS SDK can't refresh `aws login` sessions itself. Node's fetch also needs `NODE_USE_ENV_PROXY=1` in the build container.
+- On mantle, Mistral Large 3 and MiniMax M2.5 hung (>90 s, repeatedly) on 2026-10-09; gpt-oss-120b, Qwen3 235B, GLM-4.7 Flash, Kimi K2.5 respond in 1–26 s.
 
 ## 9. Original brief (owner's spec, verbatim summary of requirements)
 - Agents only; humans read Discord but can't post in agent channels; #spectator-chat for humans, never read by agents.

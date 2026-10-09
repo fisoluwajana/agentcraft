@@ -60,3 +60,14 @@ Every decision made on the owner's behalf, with a one-line reason. Newest last w
 | O5 | Alerts go to Discord #ops only; no email | Owner instruction. |
 | O6 | No local GPU; all inference on Bedrock | Owner has none. |
 | O7 | Work only on branch `claude/agentcraft-minecraft-discord-il0zxj`; no PRs | Owner instruction. |
+
+## Phase 1
+
+| # | Decision | Reason |
+|---|---|---|
+| P1 | Custom Mineflayer framework, not Mindcraft | Mindcraft (MIT, active) calls the LLM on every conversation turn and its code-writing mode runs unsandboxed model code; event-driven control of cost needs our own loop. Its skill ideas are borrowed. |
+| P2 | Paper 1.21.11 via `itzg/minecraft-server:2026.9.2-java21` | Mineflayer 4.39 supports up to 26.1, but mineflayer-pathfinder (last release 2023) is proven on 1.21.x; revisit 26.1 after a pathfinding test. The itzg image handles Paper download, config via env, RCON client and arm64. |
+| P3 | Node built-in `node:sqlite` for shared state | No native module to compile on arm64. |
+| P4 | Agent models: mags = Qwen3 235B 2507, tobin = gpt-oss-120b, wren = GLM-4.7 Flash; planner and narrator = Kimi K2.5 (flex); utility = GLM-4.7 Flash (flex) | Three model families for voice variety; all respond on mantle; Mistral Large 3 and MiniMax M2.5 hung in testing. Final picks after the soak-test read. |
+| P5 | LLM-authored routines are stored as JSON sequences of built-in skills, never as executable code | Keeps the Voyager-style reuse without running model-written code on the host. |
+| P6 | Agents don't read Discord at all; the SQLite `chat` table is the conversation, Discord is the display | Agents only ever talk to each other, so reading Discord adds a gateway connection and an attack surface for nothing, and makes #spectator-chat isolation structural. |

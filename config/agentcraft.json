@@ -1,0 +1,66 @@
+{
+  "region": "eu-north-1",
+  "mantleEndpoint": "https://bedrock-mantle.eu-north-1.api.aws/v1/chat/completions",
+  "discordSecretId": "agentcraft/discord",
+  "agendasSecretId": "agentcraft/agendas",
+  "dataDir": "/data",
+
+  "season": {
+    "timezone": "Europe/London",
+    "start": "18:00",
+    "end": "00:00",
+    "bedtimeWarningMinutes": 10
+  },
+
+  "budgets": {
+    "monthlyLlmUsd": 80,
+    "monthlyHostingUsd": 20,
+    "perAgentDailyUsd": 0.6,
+    "perAgentDailyTokens": 600000,
+    "minSecondsBetweenAgentCalls": 20,
+    "maxAgentCallsPerHour": 60,
+    "creditFloorUsd": 10
+  },
+
+  "discord": {
+    "maxPostsPerAgentPerHour": 10,
+    "typingCharsPerSecond": 6,
+    "minGapSeconds": 4,
+    "worldChannels": ["general", "off-topic", "builds", "town-hall"],
+    "chronicleChannel": "the-chronicle",
+    "opsChannel": "ops"
+  },
+
+  "minecraft": {
+    "host": "minecraft",
+    "port": 25565,
+    "rconPort": 25575,
+    "version": "1.21.11",
+    "baseRadius": 48
+  },
+
+  "models": {
+    "openai.gpt-oss-120b":            { "in": 0.15,  "out": 0.60, "flexIn": 0.075, "flexOut": 0.30, "reasoning": true },
+    "openai.gpt-oss-20b":             { "in": 0.07,  "out": 0.30, "flexIn": 0.035, "flexOut": 0.15, "reasoning": true },
+    "qwen.qwen3-235b-a22b-2507":      { "in": 0.22,  "out": 0.88, "flexIn": 0.11,  "flexOut": 0.44 },
+    "qwen.qwen3-32b":                 { "in": 0.15,  "out": 0.60, "flexIn": 0.075, "flexOut": 0.30 },
+    "zai.glm-4.7-flash":              { "in": 0.08,  "out": 0.48, "flexIn": 0.04,  "flexOut": 0.24 },
+    "zai.glm-5":                      { "in": 1.20,  "out": 3.84, "flexIn": 0.60,  "flexOut": 1.92 },
+    "mistral.mistral-large-3-675b-instruct": { "in": 0.60, "out": 1.80, "flexIn": 0.30, "flexOut": 0.90 },
+    "minimax.minimax-m2.5":           { "in": 0.36,  "out": 1.44, "flexIn": 0.18,  "flexOut": 0.72 },
+    "moonshotai.kimi-k2.5":           { "in": 0.72,  "out": 3.60, "flexIn": 0.36,  "flexOut": 1.80 },
+    "deepseek.v3.2":                  { "in": 0.74,  "out": 2.22, "flexIn": 0.37,  "flexOut": 1.11 }
+  },
+
+  "roles": {
+    "planner":   { "model": "moonshotai.kimi-k2.5", "tier": "flex", "maxTokens": 900 },
+    "narrator":  { "model": "moonshotai.kimi-k2.5", "tier": "flex", "maxTokens": 1800 },
+    "utility":   { "model": "zai.glm-4.7-flash",    "tier": "flex", "maxTokens": 500 }
+  },
+
+  "agents": [
+    { "id": "mags",  "persona": "agents/personas/mags.json",  "model": "qwen.qwen3-235b-a22b-2507" },
+    { "id": "tobin", "persona": "agents/personas/tobin.json", "model": "openai.gpt-oss-120b" },
+    { "id": "wren",  "persona": "agents/personas/wren.json",  "model": "zai.glm-4.7-flash" }
+  ]
+}
