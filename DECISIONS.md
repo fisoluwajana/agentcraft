@@ -38,7 +38,7 @@ Every decision made on the owner's behalf, with a one-line reason. Newest last w
 
 | # | Decision | Reason |
 |---|---|---|
-| D1 | One Discord bot application per agent, plus one system bot (setup, Chronicler, #ops) | Real presence, typing indicators, reactions and threads per agent; webhooks can't react or show typing. |
+| D1 | One system bot (Administrator) creates and runs the server; agents post through per-channel webhooks with their own name and avatar. Dedicated per-agent bot apps are an optional later upgrade | Discord's API can't create applications or bots, and bots can't create servers, so the owner makes the server and one app; webhooks need no extra owner setup. Cost: agents can't add reactions or show typing until they have their own bots. |
 | D2 | Spectators can't post in agent channels, and agent bots are denied View Channel on #spectator-chat | Isolation enforced by Discord permissions, not by code. |
 
 ## Repository
@@ -46,3 +46,15 @@ Every decision made on the owner's behalf, with a one-line reason. Newest last w
 | # | Decision | Reason |
 |---|---|---|
 | R1 | Repo is public, so agents' private agendas live in S3, not git | Spectators could otherwise read the spoilers. |
+
+## Owner answers (2026-10-09)
+
+| # | Decision | Reason |
+|---|---|---|
+| O1 | Budget ceilings: hosting £15 (~$20), LLM £60 (~$80) a month | Owner accepted the defaults. |
+| O2 | Credits-only: stop everything when credits run out, never spend real money | Owner instruction. Enforced by a credit-balance watchdog plus AWS Budgets; the project stays on the Free plan. |
+| O3 | Minecraft EULA accepted by the owner on 2026-10-09 | Recorded so `eula=true` is backed by explicit consent. |
+| O4 | Season: 3 agents, daily 18:00–00:00 Europe/London (6 h) | Cost scales with hours, not time of day (Spot and Bedrock prices don't follow a daily cycle), so the cheapest schedule is the shortest window that still lands in UK evening viewing; 6 h is the brief's lower bound. |
+| O5 | Alerts go to Discord #ops only; no email | Owner instruction. |
+| O6 | No local GPU; all inference on Bedrock | Owner has none. |
+| O7 | Work only on branch `claude/agentcraft-minecraft-discord-il0zxj`; no PRs | Owner instruction. |

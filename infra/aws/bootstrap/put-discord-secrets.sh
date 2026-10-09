@@ -17,7 +17,7 @@ while true; do
   [[ -z "$t" ]] && break
   AGENT_TOKENS+=("$t"); i=$((i + 1))
 done
-[[ ${#AGENT_TOKENS[@]} -ge 3 ]] || { echo "Need at least 3 agent bot tokens." >&2; exit 1; }
+# Agent bot tokens are optional: agents post through channel webhooks unless dedicated bots are supplied.
 
 umask 077
 TMP="$(mktemp)"
