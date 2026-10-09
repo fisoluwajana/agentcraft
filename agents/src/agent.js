@@ -34,6 +34,12 @@ async function loadAgenda() {
 
 export const LEDGER = { username: 'Town Ledger', avatarUrl: 'https://api.dicebear.com/9.x/icons/png?seed=ledger&size=128' };
 
+async function announceBallot(b) {
+  const text = `🗳️ **${b.by}** voted **${b.option}** on #${b.id} (${b.question})${b.reason ? `: _${b.reason}_` : ''}`;
+  openDb().prepare("INSERT INTO chat(ts,day,channel,author,text,kind) VALUES(?,?,?,?,?,'system')").run(now(), seasonDay(), 'town-hall', LEDGER.username, text);
+  await postAs({ channel: 'town-hall', ...LEDGER, content: text });
+}
+
 async function announceVote(v) {
   const text = `🗳️ **Vote #${v.id}** (proposed by ${v.by}): ${v.question}\n${v.options.map((o, i) => `${i + 1}. ${o}`).join('\n')}\nCloses in ${v.hours} h.`;
   openDb().prepare("INSERT INTO chat(ts,day,channel,author,text,kind) VALUES(?,?,?,?,?,'system')").run(now(), seasonDay(), 'town-hall', LEDGER.username, text);
@@ -189,6 +195,7 @@ class Agent {
     const civics = applyCivics(P.name, d);
     for (const c of civics) { this.push('civics', c); this.progress(c); }
     if (civics.announce) await announceVote(civics.announce).catch((e) => log('vote announce failed', e.message));
+    if (civics.ballot) await announceBallot(civics.ballot).catch((e) => log('ballot announce failed', e.message));
     if (d.react?.length) for (const r of d.react.slice(0, 2)) await this.chat.reactTo(r.message_id, r.emoji);
     if (d.vote && d.say.length) d.say = d.say.map((x) => ({ ...x, civic: true }));
     if (d.say.length) this.chat.say(d.say, this.progressLastHour()).catch((e) => log('say failed', e.message));

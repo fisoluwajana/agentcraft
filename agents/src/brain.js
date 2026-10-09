@@ -132,9 +132,18 @@ export function applyCivics(agentName, d) {
     out.announce = { id: Number(r.lastInsertRowid), question: String(v.propose.question).slice(0, 200), options: v.propose.options.slice(0, 5), hours, by: agentName };
   }
   if (v.cast?.vote_id && v.cast.option) {
-    db.prepare('INSERT INTO ballots(vote_id,agent,option,reason,ts) VALUES(?,?,?,?,?) ON CONFLICT(vote_id,agent) DO UPDATE SET option=excluded.option, reason=excluded.reason, ts=excluded.ts')
-      .run(v.cast.vote_id, agentName, String(v.cast.option).slice(0, 80), String(v.cast.reason || '').slice(0, 200), now());
-    out.push(`voted '${v.cast.option}' on #${v.cast.vote_id}`);
+    // Only open votes, and the ballot must name one of the real options ("Tobin" -> "Tobin (if he has meat)").
+    const vote = db.prepare("SELECT id, question, options FROM votes WHERE id=? AND status='open'").get(Number(v.cast.vote_id));
+    const want = String(v.cast.option).toLowerCase().trim();
+    const opts = vote ? JSON.parse(vote.options || '[]').map(String) : [];
+    const option = opts.find((o) => o.toLowerCase() === want) || opts.find((o) => o.toLowerCase().startsWith(want) || want.startsWith(o.toLowerCase().split(' (')[0])) || opts.find((o) => o.toLowerCase().includes(want));
+    if (option) {
+      const reason = String(v.cast.reason || '').slice(0, 200);
+      db.prepare('INSERT INTO ballots(vote_id,agent,option,reason,ts) VALUES(?,?,?,?,?) ON CONFLICT(vote_id,agent) DO UPDATE SET option=excluded.option, reason=excluded.reason, ts=excluded.ts')
+        .run(vote.id, agentName, option, reason, now());
+      out.push(`voted '${option}' on #${vote.id}`);
+      out.ballot = { id: vote.id, question: vote.question, option, reason, by: agentName };
+    } else out.push(`vote not counted: #${v.cast.vote_id} isn't open or '${v.cast.option}' isn't one of its options (${opts.join(' / ') || 'none'})`);
   }
   return out;
 }

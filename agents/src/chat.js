@@ -7,6 +7,21 @@ import { postAs, react, startThread } from '../lib/discord.js';
 
 const BANNED_DEFAULT = ['as an ai', 'great work team', 'absolutely', "let's collaborate", 'synergy', "i'd be happy to"];
 
+// Topic-level repeat detection: content words only (no filler), crude stemming.
+const STOP = new Set('the and for you your are was were but not with this that have has had its just then than them they she her his him our out get got going gonna heading head now too all any can will what who how why when where there here into onto from off some more most very really still yet also back over down about like make made take took taking grab grabbing need needs want wants yes nah lol okay one two let lets dont thats youre'.split(' '));
+const contentWords = (t) => new Set(t.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w) => w.length > 2 && !STOP.has(w)).map((w) => w.replace(/(ing|ed|es|s)$/, '')));
+function sameTopic(a, b) {
+  const A = contentWords(a), B = contentWords(b);
+  if (!A.size || !B.size) return false;
+  const inter = [...A].filter((w) => B.has(w)).length;
+  const r = inter / Math.min(A.size, B.size);
+  return (inter >= 3 && r >= 0.34) || (inter >= 2 && r >= 0.5);
+}
+const NEWS = /\d+\s*,\s*-?\d+|\b(found|finished|built|done|crafted|got|died|made)\b/i;          // new information is never a repeat
+const NARRATION = /^(heading|going|gonna|on my way|off to|grabbing|getting|hunting|on the hunt|rushing|sprinting|scouting|i'?m (heading|going|off|grabbing|getting|on my way))\b/i;
+const BALLOT_SYNTAX = /^\s*vote\s*:|\bcast\b.+\bon\b.+\?/i;                                    // model leaking the vote field into chat
+const CIVIC_TALK = /\bvot(e|es|ed|ing)\b|\bpropos|\bmayor\b|\belect|\bdecid|\bshould we\b|\bmotion\b|\bballot/i;
+
 export class Chat {
   constructor(agentId, persona) {
     this.id = agentId;
@@ -108,14 +123,18 @@ export class Chat {
     for (const it of items.slice(0, 4)) {
       if (it.react?.message_id) { await this.reactTo(it.react.message_id, it.react.emoji); continue; }
       let channel = config.discord.worldChannels.includes(it.channel) ? it.channel : 'general';
-      const civicTalk = /\bvot(e|es|ed|ing)\b|\bpropos|\bmayor\b|\belect|\bdecid|\bshould we\b|\bmotion\b|\bballot/i.test(it.text || '');
-      const openVote = openDb().prepare("SELECT COUNT(*) n FROM votes WHERE status='open'").get().n > 0;
-      if (it.civic || (civicTalk && openVote)) channel = 'town-hall';
+      const openVotes = openDb().prepare("SELECT options FROM votes WHERE status='open'").all();
+      const low = (it.text || '').toLowerCase();
+      const mentionsOption = openVotes.some((v) => JSON.parse(v.options || '[]').some((o) => String(o).split(' (')[0].length > 5 && low.includes(String(o).toLowerCase().split(' (')[0])));
+      const civicTalk = CIVIC_TALK.test(it.text || '') || mentionsOption;
+      // A decision that also cast a vote only sends its vote-related lines to #town-hall.
+      if ((it.civic && civicTalk) || (civicTalk && openVotes.length)) channel = 'town-hall';
       // #town-hall is only for decisions: anything else posted there moves to #general.
       else if (channel === 'town-hall' && !civicTalk) channel = 'general';
       const text = this.clean(it.text);
       if (!text) continue;
-      if (this.isRepeat(text)) { this.drop('repeat', text); continue; }
+      if (BALLOT_SYNTAX.test(text)) { this.drop('ballot syntax (the Town Ledger posts ballots)', text); continue; }
+      if (this.isRepeat(text, channel)) { this.drop('repeat', text); continue; }
       if (it.reply_to_id && openDb().prepare('SELECT author FROM chat WHERE id=?').get(it.reply_to_id)?.author === this.name) it.reply_to_id = null;
       // Pace posts: replies flow freely so back-and-forth works; a fresh remark waits ~2 min after
       // our last post; at most 6 posts in 10 minutes; the hourly cap is only a safety ceiling.
@@ -124,7 +143,9 @@ export class Chat {
       if (this.postsLastHour() >= cap) { this.drop('hourly cap', text); break; }
       if (this.postsSince(now() - 600_000) >= 6) { this.drop('burst', text); break; }
       const others = config.agents.map((a) => a.id).filter((n) => n !== this.id);
-      const conversational = it.reply_to_id || /\?\s*$/.test(text) || others.some((n) => new RegExp(`\\b${n}\\b`, 'i').test(text));
+      // Conversational = a reply, a question, or addressed to someone ("mags, ..."), not just mentioning them.
+      const conversational = it.reply_to_id || /\?\s*$/.test(text) || others.some((n) => new RegExp(`^@?${n}\\b`, 'i').test(text));
+      if (!conversational && NARRATION.test(text) && this.narratedRecently(15 * 60_000)) { this.drop('narration cooldown', text); continue; }
       if (!conversational && sinceLast < gapMs) { this.drop(`gap ${Math.round(sinceLast / 1000)}s`, text); continue; }
       // Human pacing: think, then type.
       const typing = Math.min(text.length / config.discord.typingCharsPerSecond, 14);
@@ -157,7 +178,20 @@ export class Chat {
   }
 
   // Skip near-duplicates of anything we said in the last hour (word-set Jaccard similarity).
-  isRepeat(text) {
+  narratedRecently(ms) {
+    return openDb().prepare("SELECT text FROM chat WHERE author=? AND ts>? AND kind='message'").all(this.name, now() - ms).some((m) => NARRATION.test(m.text));
+  }
+
+  isRepeat(text, channel) {
+    // Same point, reworded, in the same channel within 20 min (news is exempt).
+    if (!NEWS.test(text)) {
+      const recent = openDb().prepare("SELECT text FROM chat WHERE author=? AND channel=? AND ts>? AND kind='message'").all(this.name, channel, now() - 20 * 60_000);
+      if (recent.some((m) => sameTopic(text, m.text))) return true;
+    }
+    return this.isNearDuplicate(text);
+  }
+
+  isNearDuplicate(text) {
     const words = (t) => new Set(t.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w) => w.length > 2));
     const a = words(text);
     if (a.size < 3) return false;
