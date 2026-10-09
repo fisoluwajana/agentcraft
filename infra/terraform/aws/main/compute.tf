@@ -18,7 +18,7 @@ resource "aws_launch_template" "host" {
   block_device_mappings {
     device_name = "/dev/xvda"
     ebs {
-      volume_size           = 20
+      volume_size           = 30 # holds the world now (restored from S3 at boot)
       volume_type           = "gp3"
       encrypted             = true
       delete_on_termination = true
@@ -27,7 +27,6 @@ resource "aws_launch_template" "host" {
 
   user_data = base64encode(templatefile("${path.module}/user-data.sh", {
     region         = var.region
-    world_volume   = aws_ebs_volume.world.id
     data_bucket    = aws_s3_bucket.data.bucket
     asg_name       = "${local.name}-host"
     lifecycle_hook = "${local.name}-drain"
@@ -48,7 +47,7 @@ resource "aws_autoscaling_group" "host" {
   min_size            = 0
   max_size            = 1
   desired_capacity    = 0
-  vpc_zone_identifier = [aws_subnet.public.id]
+  vpc_zone_identifier = concat([aws_subnet.public.id], [for s in aws_subnet.extra : s.id])
   health_check_type   = "EC2"
   capacity_rebalance  = false
 

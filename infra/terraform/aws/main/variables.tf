@@ -9,6 +9,12 @@ variable "az" {
   default     = "eu-north-1a"
 }
 
+variable "extra_azs" {
+  description = "More AZs for Spot capacity. The world is restored from the latest S3 backup at boot, so the host can run in any of them."
+  type        = list(string)
+  default     = ["eu-north-1b", "eu-north-1c"]
+}
+
 variable "instance_types" {
   description = "Spot candidates. The Free plan only allows Free Tier eligible types; the only one with 8 GiB is m7i-flex.large (x86)."
   type        = list(string)

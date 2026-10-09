@@ -34,6 +34,22 @@ resource "aws_route_table_association" "public" {
   route_table_id = aws_route_table.public.id
 }
 
+# Extra subnets so the Spot host can launch in any AZ (the world comes from S3, not a zonal volume).
+resource "aws_subnet" "extra" {
+  for_each                = { for i, az in var.extra_azs : az => i }
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = cidrsubnet(aws_vpc.main.cidr_block, 2, each.value + 1)
+  availability_zone       = each.key
+  map_public_ip_on_launch = true
+  tags                    = { Name = "${local.name}-public-${each.key}" }
+}
+
+resource "aws_route_table_association" "extra" {
+  for_each       = aws_subnet.extra
+  subnet_id      = each.value.id
+  route_table_id = aws_route_table.public.id
+}
+
 # Strip the default security group's rules so nothing can use it by accident.
 resource "aws_default_security_group" "default" {
   vpc_id = aws_vpc.main.id

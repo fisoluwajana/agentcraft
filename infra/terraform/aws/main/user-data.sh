@@ -3,7 +3,6 @@
 set -euo pipefail
 exec > >(tee -a /var/log/agentcraft-boot.log) 2>&1
 REGION=${region}
-VOLUME=${world_volume}
 BUCKET=${data_bucket}
 ASG=${asg_name}
 HOOK=${lifecycle_hook}
@@ -21,24 +20,26 @@ echo "7af95166a730b87e172d4fc9aefea8725d3c6c7327d59149267b452114ddb7d4  /usr/loc
 chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 systemctl enable --now docker
 
-echo "== world volume $VOLUME"
-for i in $(seq 1 60); do
-  state=$(aws ec2 describe-volumes --volume-ids "$VOLUME" --query 'Volumes[0].State' --output text)
-  [ "$state" = "available" ] && break
-  echo "volume is $state; waiting for the previous host to release it ($i)"; sleep 10
+echo "== world from S3"
+# The host can boot in any AZ, so the world comes from the newest backup. If a previous host is
+# still draining (Spot notice or scale-in), wait for it to finish its final backup first.
+for i in $(seq 1 40); do
+  others=$(aws ec2 describe-instances --filters Name=tag:project,Values=agentcraft Name=instance-state-name,Values=running,stopping,shutting-down \
+    --query "Reservations[].Instances[?InstanceId!='$INSTANCE'].InstanceId" --output text)
+  [ -z "$others" ] && break
+  echo "previous host $others still draining; waiting ($i)"; sleep 15
 done
-aws ec2 attach-volume --volume-id "$VOLUME" --instance-id "$INSTANCE" --device /dev/sdf >/dev/null
-DEV=""
-for i in $(seq 1 60); do
-  DEV=$(lsblk -dpno NAME,SERIAL | awk -v s="$${VOLUME/-/}" '$2==s{print $1}')
-  [ -n "$DEV" ] && break; sleep 2
-done
-[ -n "$DEV" ] || { echo "world volume never appeared"; exit 1; }
-blkid "$DEV" >/dev/null 2>&1 || mkfs.ext4 -L agentcraft-world "$DEV"
-mkdir -p /data && mount "$DEV" /data
+mkdir -p /data
+LATEST=$(aws s3api list-objects-v2 --bucket "$BUCKET" --prefix backups/ --query 'sort_by(Contents[?ends_with(Key, `.tar.zst`)], &LastModified)[-1].Key' --output text)
+if [ -n "$LATEST" ] && [ "$LATEST" != "None" ]; then
+  echo "restoring $LATEST"
+  aws s3 cp --only-show-errors "s3://$BUCKET/$LATEST" /tmp/world.tar.zst
+  tar --zstd -xf /tmp/world.tar.zst -C /data && rm -f /tmp/world.tar.zst
+else
+  echo "no backup found: starting a fresh world"
+fi
 mkdir -p /data/minecraft /data/state /data/agents /data/backups
-chown -R 1000:1000 /data/minecraft
-chown -R 1000:1000 /data/state /data/agents
+chown -R 1000:1000 /data/minecraft /data/state /data/agents
 
 echo "== release"
 REL=$(aws ssm get-parameter --name /agentcraft/release --query Parameter.Value --output text)
@@ -76,19 +77,36 @@ OnUnitActiveSec=6h
 [Install]
 WantedBy=timers.target
 UNIT
+cat > /etc/systemd/system/agentcraft-rolling-backup.service <<UNIT
+[Unit]
+Description=AgentCraft rolling world backup (caps what a Spot reclaim can lose)
+[Service]
+Type=oneshot
+Environment=BUCKET=$BUCKET AWS_DEFAULT_REGION=$REGION PREFIX=backups/rolling/ QUIET=1
+ExecStart=/usr/local/bin/agentcraft-backup.sh
+UNIT
+cat > /etc/systemd/system/agentcraft-rolling-backup.timer <<UNIT
+[Unit]
+Description=AgentCraft rolling backup every 10 minutes
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=10min
+[Install]
+WantedBy=timers.target
+UNIT
 cat > /etc/systemd/system/agentcraft-drain.service <<UNIT
 [Unit]
-Description=AgentCraft: save, back up and release the world volume on scale-in or Spot interruption
+Description=AgentCraft: save and back up the world on scale-in or Spot interruption
 After=docker.service
 [Service]
-Environment=BUCKET=$BUCKET AWS_DEFAULT_REGION=$REGION ASG=$ASG HOOK=$HOOK INSTANCE=$INSTANCE VOLUME=$VOLUME
+Environment=BUCKET=$BUCKET AWS_DEFAULT_REGION=$REGION ASG=$ASG HOOK=$HOOK INSTANCE=$INSTANCE
 ExecStart=/usr/local/bin/agentcraft-drain.sh
 Restart=always
 [Install]
 WantedBy=multi-user.target
 UNIT
 systemctl daemon-reload
-systemctl enable --now agentcraft-backup.timer agentcraft-drain.service
+systemctl enable --now agentcraft-backup.timer agentcraft-rolling-backup.timer agentcraft-drain.service
 
 echo "== start"
 if [ -f /opt/agentcraft/infra/docker/compose.yml ]; then

@@ -1,4 +1,5 @@
-# The world lives on its own volume, which survives every Spot replacement and scale-to-zero.
+# Legacy: the world used to live on this zonal volume. Since multi-AZ Spot (P14) the host restores the
+# world from S3 instead; the volume is kept, detached, as a last-resort copy until the owner deletes it.
 resource "aws_ebs_volume" "world" {
   availability_zone = var.az
   size              = var.world_volume_gb
@@ -35,6 +36,12 @@ resource "aws_s3_bucket_lifecycle_configuration" "data" {
     status = "Enabled"
     filter { prefix = "backups/" }
     expiration { days = var.backup_retention_days }
+  }
+  rule {
+    id     = "rolling-backups"
+    status = "Enabled"
+    filter { prefix = "backups/rolling/" }
+    expiration { days = 2 }
   }
   rule {
     id     = "releases"

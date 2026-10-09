@@ -53,16 +53,6 @@ data "aws_iam_policy_document" "host" {
     resources = ["*"]
   }
   statement {
-    sid       = "AttachWorldVolume"
-    actions   = ["ec2:AttachVolume", "ec2:DetachVolume"]
-    resources = [aws_ebs_volume.world.arn, "arn:aws:ec2:${var.region}:${local.account}:instance/*"]
-    condition {
-      test     = "StringEquals"
-      variable = "aws:ResourceTag/project"
-      values   = ["agentcraft"]
-    }
-  }
-  statement {
     sid       = "Describe"
     actions   = ["ec2:DescribeVolumes", "ec2:DescribeInstances", "autoscaling:DescribeAutoScalingInstances"]
     resources = ["*"]
