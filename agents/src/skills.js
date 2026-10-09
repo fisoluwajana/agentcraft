@@ -154,6 +154,85 @@ async function digDown(bot, wantStone) {
   return got;
 }
 
+const LIQUID = ['water', 'lava', 'flowing_water', 'flowing_lava'];
+function nearLiquid(bot, p) {
+  for (const [dx, dy, dz] of [[0, 0, 0], [1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) {
+    const b = bot.blockAt(p.offset(dx, dy, dz));
+    if (b && LIQUID.includes(b.name)) return true;
+  }
+  return false;
+}
+
+// Clear one block if it's solid; refuse anything next to liquid or undiggable.
+async function clearBlock(bot, p) {
+  const b = bot.blockAt(p);
+  if (!b || b.boundingBox !== 'block') return;
+  if (nearLiquid(bot, p)) throw new SkillError('tunnel would open into water or lava');
+  if (!bot.canDigBlock(b) || b.name === 'bedrock') throw new SkillError(`can't dig ${b.name} in the way`);
+  await bot.tool.equipForBlock(b, {}).catch(() => {});
+  await withTimeout(bot.dig(b, true), 15_000, 'digging');
+}
+
+// Tunnel like a player (2-high corridor, stairs down when the target is lower) until the target
+// block is within reach, then mine it. Only used for ores we can see in the chunk data but that
+// aren't exposed to air. Max ~24 steps.
+async function tunnelTo(bot, target) {
+  for (let step = 0; step < 24; step++) {
+    const feet = bot.entity.position.floored();
+    if (process.env.DEBUG_TUNNEL) console.log('tunnel', step, feet.toString(), '->', target.toString());
+    const eye = bot.entity.position.offset(0, 1.6, 0);
+    // Mine it once it's in reach AND uncovered (the server won't let you dig through rock).
+    if (eye.distanceTo(target.offset(0.5, 0.5, 0.5)) <= 4.2 && isExposed(bot, target)) {
+      const blk = bot.blockAt(target);
+      if (nearLiquid(bot, target)) throw new SkillError('ore is next to water or lava');
+      await bot.tool.equipForBlock(blk, {}).catch(() => {});
+      if (bot.canDigBlock(blk)) {
+        await withTimeout(bot.dig(blk, true), 20_000, 'digging').catch(() => {});
+        await pickUpDrops(bot, target);
+        if (bot.blockAt(target)?.type !== blk.type) return true;
+      }
+    }
+    const dx = target.x - feet.x, dz = target.z - feet.z, dy = target.y - feet.y;
+    const dir = Math.abs(dx) >= Math.abs(dz) ? new Vec3(Math.sign(dx), 0, 0) : new Vec3(0, 0, Math.sign(dz));
+    if (dx === 0 && dz === 0) {
+      if (dy >= 0) return false; // directly above: give up rather than dig up into gravel/sand
+      const below = feet.offset(0, -1, 0);
+      if (nearLiquid(bot, below.offset(0, -1, 0))) throw new SkillError('water or lava below');
+      await clearBlock(bot, below);
+      await sleep(400);
+      continue;
+    }
+    let next = feet.plus(dir);
+    if (next.equals(target) || next.offset(0, 1, 0).equals(target) || next.offset(0, -1, 0).equals(target)) {
+      // The ore is in the next column: open the face toward it instead of walking into it.
+      for (const p of [next.offset(0, 1, 0), next, next.offset(0, -1, 0)]) if (!p.equals(target) && bot.blockAt(p)?.boundingBox === 'block' && bot.blockAt(target)?.boundingBox === 'block' && !isExposed(bot, target)) await clearBlock(bot, p);
+      if (!isExposed(bot, target)) throw new SkillError('could not uncover the ore');
+      continue;
+    }
+    const down = dy < -1; // stairs down while the target is lower
+    if (down) {
+      await clearBlock(bot, next.offset(0, 1, 0));
+      await clearBlock(bot, next);
+      await clearBlock(bot, next.offset(0, -1, 0));
+      const floor = bot.blockAt(next.offset(0, -2, 0));
+      if (!floor || floor.boundingBox !== 'block') throw new SkillError('no floor ahead (cave or drop)');
+    } else {
+      await clearBlock(bot, next.offset(0, 1, 0));
+      await clearBlock(bot, next);
+      const floor = bot.blockAt(next.offset(0, -1, 0));
+      if (!floor || floor.boundingBox !== 'block') {
+        const deeper = bot.blockAt(next.offset(0, -2, 0));
+        if (!deeper || deeper.boundingBox !== 'block') throw new SkillError('no floor ahead (cave or drop)');
+      }
+    }
+    const goalY = down ? next.y - 1 : next.y;
+    const before = bot.entity.position.clone();
+    await gotoPos(bot, next.x + 0.5, goalY, next.z + 0.5, 0.6, 8_000).catch(() => {});
+    if (bot.entity.position.distanceTo(before) < 0.5) throw new SkillError('tunnel blocked');
+  }
+  return false;
+}
+
 async function pickUpDrops(bot, near) {
   await sleep(350);
   const drops = Object.values(bot.entities).filter((e) => e.name === 'item' && e.position.distanceTo(near) < 5);
@@ -267,21 +346,35 @@ export const SKILLS = {
       const before = invCounts(bot);
       const tried = new Set();
       let failures = 0;
-      const gainedTotal = () => Object.values(diff(before, invCounts(bot))).filter((v) => v > 0).reduce((s, v) => s + v, 0);
+      let tunnelErr = null;
+      let tunnels = 0; // up to two tunnel attempts per collect
+      // Only the block's own drops count (tunnelling also yields dirt and cobblestone).
+      const dropNames = new Set(ids.flatMap((id) => (bot.registry.blocks[id]?.drops || []).map((d) => bot.registry.items[typeof d === 'object' ? d.drop?.id ?? d.id : d]?.name)).filter(Boolean));
+      const counts = (g) => Object.entries(g).filter(([k, v]) => v > 0 && (!dropNames.size || dropNames.has(k)));
+      const gainedTotal = () => counts(diff(before, invCounts(bot))).reduce((s, [, v]) => s + v, 0);
       while (gainedTotal() < want && failures < 4) {
         const me = bot.entity.position;
         // Ask for many candidates: the nearest few dozen are usually buried underground.
         const target = bot.findBlocks({ matching: ids, maxDistance: 64, count: 2000 })
           .filter((p) => !tried.has(p.toString()) && Math.abs(p.y - me.y) <= 12 && isExposed(bot, p))
           .sort((p, q) => p.distanceTo(me) - q.distanceTo(me))[0];
-        if (!target) {
+        const isStone = ids.some((id) => ['stone', 'cobblestone', 'deepslate'].includes(bot.registry.blocks[id]?.name));
+        if (!target || (!isStone && failures >= 2 && tunnels < 2)) {
           // Nothing exposed: for stone, dig down from where we stand like a player would.
-          if (ids.some((id) => ['stone', 'cobblestone', 'deepslate'].includes(bot.registry.blocks[id]?.name)) && !tried.has('digdown')) {
+          if (isStone) {
+            if (tried.has('digdown')) break;
             tried.add('digdown');
             await digDown(bot, Math.min(want - gainedTotal(), 8)).catch(() => { failures++; });
             continue;
           }
-          break;
+          // Ores: tunnel to the nearest buried one we know about (players see ore through mined walls too).
+          const buried = bot.findBlocks({ matching: ids, maxDistance: 24, count: 200 })
+            .filter((p) => !tried.has(p.toString()) && p.y - me.y <= 1 && me.y - p.y <= 12)
+            .sort((p, q) => p.distanceTo(me) - q.distanceTo(me))[0];
+          if (!buried || tunnels >= 2) { tunnelErr ||= buried ? null : 'no buried ore within 24 blocks'; break; }
+          tunnels++; tried.add(buried.toString());
+          try { await tunnelTo(bot, buried); } catch (e) { tunnelErr = e.message; failures++; }
+          continue;
         }
         tried.add(target.toString());
         try {
@@ -295,7 +388,7 @@ export const SKILLS = {
         } catch { failures++; }
       }
       const gained = diff(before, invCounts(bot));
-      if (!Object.values(gained).some((v) => v > 0)) throw new SkillError(`couldn't get any ${a.block}: none exposed and reachable within ~60 blocks (or no tool for it); explore elsewhere or craft a better pickaxe`);
+      if (!counts(gained).length) throw new SkillError(`couldn't get any ${a.block}: none exposed and reachable within ~60 blocks${tunnelErr ? `; tunnelling: ${tunnelErr}` : ''}; explore elsewhere (try another area or follow a cave)`);
       return { ok: true, summary: `mined ${Object.entries(gained).filter(([, v]) => v > 0).map(([k, v]) => `${v} ${k}`).join(', ')}`, gained };
     },
   },
