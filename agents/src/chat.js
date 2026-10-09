@@ -69,8 +69,7 @@ export class Chat {
   // Chat-vs-progress guardrail: if talking a lot while doing little, the cap tightens.
   postCap(progressEventsLastHour) {
     const base = config.discord.maxPostsPerAgentPerHour;
-    if (progressEventsLastHour === 0) return Math.max(4, Math.floor(base / 2));
-    if (progressEventsLastHour < 3) return Math.max(6, Math.floor(base * 0.7));
+    if (progressEventsLastHour === 0) return Math.floor(base * 0.6);
     return base;
   }
 
@@ -118,13 +117,12 @@ export class Chat {
       if (!text) continue;
       if (this.isRepeat(text)) { this.drop('repeat', text); continue; }
       if (it.reply_to_id && openDb().prepare('SELECT author FROM chat WHERE id=?').get(it.reply_to_id)?.author === this.name) it.reply_to_id = null;
-      // Pace posts across the hour instead of spending the whole cap in one burst and going silent:
-      // a fresh remark needs ~60% of the average gap since our last post; a reply can come sooner,
-      // but never more than 3 posts in 10 minutes.
-      const gapMs = (3600_000 / cap) * 0.6;
+      // Pace posts: replies flow freely so back-and-forth works; a fresh remark waits ~2 min after
+      // our last post; at most 6 posts in 10 minutes; the hourly cap is only a safety ceiling.
+      const gapMs = 120_000;
       const sinceLast = now() - this.lastPostTs();
       if (this.postsLastHour() >= cap) { this.drop('hourly cap', text); break; }
-      if (this.postsSince(now() - 600_000) >= 3) { this.drop('burst', text); break; }
+      if (this.postsSince(now() - 600_000) >= 6) { this.drop('burst', text); break; }
       if (!it.reply_to_id && sinceLast < gapMs) { this.drop(`gap ${Math.round(sinceLast / 1000)}s`, text); continue; }
       // Human pacing: think, then type.
       const typing = Math.min(text.length / config.discord.typingCharsPerSecond, 14);

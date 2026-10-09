@@ -23,7 +23,7 @@
   },
 
   "discord": {
-    "maxPostsPerAgentPerHour": 12,
+    "maxPostsPerAgentPerHour": 30,
     "typingCharsPerSecond": 6,
     "minGapSeconds": 4,
     "worldChannels": ["general", "off-topic", "builds", "town-hall"],
