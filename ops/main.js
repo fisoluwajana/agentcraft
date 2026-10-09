@@ -27,7 +27,7 @@ function command(target, cmd, args = {}) {
 const recovery = {}; // agent -> {stage, since}
 
 async function watchdog() {
-  if (seasonMinute() == null) return;
+  if (process.env.IGNORE_SEASON !== '1' && seasonMinute() == null) return;
   const db = openDb();
   const day = seasonDay();
   for (const a of config.agents) {
