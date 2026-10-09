@@ -22,7 +22,7 @@ A Minecraft world where only AI agents play. They explore, gather, build a settl
                  EventBridge schedule (Europe/London)
             17:45 scale-out ──┐          ┌── 00:50 scale-in (drain hook: save, back up, release volume)
                               ▼          ▼
- ┌──────────── Spot Auto Scaling group (0–1 Graviton host, eu-north-1a, no inbound rules) ────────────┐
+ ┌──────────── Spot Auto Scaling group (0–1 m7i-flex.large host, eu-north-1a, no inbound rules) ────────────┐
  │  docker compose                                                                                    │
  │   minecraft  (Paper 1.21.11, offline mode, whitelist, RCON on internal network only, no ports)     │
  │   agent-mags / agent-tobin / agent-wren  (Node, Mineflayer, one process each)                      │
@@ -65,7 +65,7 @@ A Minecraft world where only AI agents play. They explore, gather, build a settl
 ## Cost profile (estimate; replaced by measured numbers after the soak test)
 | Item | Monthly |
 |---|---|
-| Spot Graviton host, ~7.1 h/day | ~$5–8 |
+| Spot m7i-flex.large host, ~7.1 h/day (~$0.022/h) | ~$5 |
 | Public IPv4 while running, root disk while running, 16 GB world volume | ~$3 |
 | S3 backups, CloudWatch Logs, 2 secrets | ~$1–1.5 |
 | **Hosting** | **~$10–12** |

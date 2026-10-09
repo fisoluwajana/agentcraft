@@ -22,7 +22,7 @@ Server set up 2026-10-09. Spectator invite: https://discord.gg/pHYaWcVD2A
 - [~] Ops (`ops/main.js` watchdog, votes, budget pause, chronicle trigger; `ops/digest.js`; `discord/narrator.js`) written, untested.
 - [~] Dockerfile + `infra/docker/compose.yml` written
 - [ ] Server + compose + local integration test (local Paper 1.21.4 (seed 8675309) container `mc-dev` running in build container)
-- [~] Terraform written and `terraform validate` passes: `infra/terraform/aws/bootstrap` (state bucket) and `infra/terraform/aws/main` (VPC without NAT, egress-only SG, S3 gateway endpoint, world EBS volume, data bucket with 14-day backup lifecycle, instance role under a permissions boundary, Spot ASG 0–1 with schedules 17:45/00:50 Europe/London, drain lifecycle hook, credit-guard Lambda hourly plus Budgets via SNS). Not yet planned or applied; needs owner "go".
+- [~] Terraform written and `terraform validate` passes: `infra/terraform/aws/bootstrap` (state bucket) and `infra/terraform/aws/main` (VPC without NAT, egress-only SG, S3 gateway endpoint, world EBS volume, data bucket with 14-day backup lifecycle, instance role under a permissions boundary, Spot ASG 0–1 with schedules 17:45/00:50 Europe/London, drain lifecycle hook, credit-guard Lambda hourly plus Budgets via SNS). **Applied 2026-10-09** after owner "go" (bootstrap 5 + main 40 resources). Credit guard Lambda tested: plan FREE, ACTIVE, $100 remaining.
 - [x] Scripts: `scripts/killswitch.sh`, `scripts/resume.sh`, `scripts/deploy.sh`, `scripts/dev-run.sh`; host: `ops/host/agentcraft-backup.sh`, `ops/host/agentcraft-drain.sh`; `server/fetch-paper.sh` (pinned Paper 1.21.4 (seed 8675309) build 132 + Mojang jar, checksummed)
 
 ## Next

@@ -10,9 +10,9 @@ variable "az" {
 }
 
 variable "instance_types" {
-  description = "Spot candidates (Graviton, 8+ GiB). Diversity lowers interruption risk."
+  description = "Spot candidates. The Free plan only allows Free Tier eligible types; the only one with 8 GiB is m7i-flex.large (x86)."
   type        = list(string)
-  default     = ["t4g.large", "m7g.large", "m6g.large", "m8g.large", "c7g.xlarge", "r7g.large"]
+  default     = ["m7i-flex.large"]
 }
 
 variable "world_volume_gb" {

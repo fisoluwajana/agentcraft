@@ -1,10 +1,10 @@
-data "aws_ssm_parameter" "al2023_arm" {
-  name = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64"
+data "aws_ssm_parameter" "al2023" {
+  name = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
 }
 
 resource "aws_launch_template" "host" {
   name_prefix   = "${local.name}-"
-  image_id      = data.aws_ssm_parameter.al2023_arm.value
+  image_id      = data.aws_ssm_parameter.al2023.value
   instance_type = var.instance_types[0]
   iam_instance_profile { arn = aws_iam_instance_profile.host.arn }
   vpc_security_group_ids = [aws_security_group.host.id]

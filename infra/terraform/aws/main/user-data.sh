@@ -1,5 +1,5 @@
 #!/bin/bash
-# AgentCraft host bootstrap (Amazon Linux 2023, arm64). Rendered by Terraform templatefile().
+# AgentCraft host bootstrap (Amazon Linux 2023, x86_64). Rendered by Terraform templatefile().
 set -euo pipefail
 exec > >(tee -a /var/log/agentcraft-boot.log) 2>&1
 REGION=${region}
@@ -16,8 +16,8 @@ echo "== packages"
 dnf install -y -q docker jq tar gzip zstd
 mkdir -p /usr/local/lib/docker/cli-plugins
 curl -fsSL -o /usr/local/lib/docker/cli-plugins/docker-compose \
-  "https://github.com/docker/compose/releases/download/v2.39.4/docker-compose-linux-aarch64"
-echo "49082844b87f03cdcd5f5bbef1ba8c9c897b7a2dfb80cea18d61ec8ca6117e0c  /usr/local/lib/docker/cli-plugins/docker-compose" | sha256sum -c -
+  "https://github.com/docker/compose/releases/download/v2.39.4/docker-compose-linux-x86_64"
+echo "7af95166a730b87e172d4fc9aefea8725d3c6c7327d59149267b452114ddb7d4  /usr/local/lib/docker/cli-plugins/docker-compose" | sha256sum -c -
 chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 systemctl enable --now docker
 
