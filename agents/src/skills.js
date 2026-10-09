@@ -136,6 +136,24 @@ function isExposed(bot, p) {
   return false;
 }
 
+// Dig straight down (not under liquids, never more than ~10 blocks) to reach stone, mining what's below.
+async function digDown(bot, wantStone) {
+  let got = 0;
+  for (let i = 0; i < 10 && got < wantStone; i++) {
+    const below = bot.blockAt(bot.entity.position.offset(0, -1, 0).floored());
+    if (!below || below.boundingBox !== 'block' || ['bedrock', 'water', 'lava'].includes(below.name)) break;
+    const under = bot.blockAt(below.position.offset(0, -1, 0));
+    if (under && ['lava', 'water'].includes(under.name)) break;
+    await bot.tool.equipForBlock(below, {}).catch(() => {});
+    if (!bot.canDigBlock(below)) break;
+    await withTimeout(bot.dig(below, true), 15_000, 'digging');
+    if (['stone', 'cobblestone', 'deepslate'].includes(below.name)) got++;
+    await sleep(500);
+  }
+  await pickUpDrops(bot, bot.entity.position);
+  return got;
+}
+
 async function pickUpDrops(bot, near) {
   await sleep(350);
   const drops = Object.values(bot.entities).filter((e) => e.name === 'item' && e.position.distanceTo(near) < 5);
@@ -252,10 +270,19 @@ export const SKILLS = {
       const gainedTotal = () => Object.values(diff(before, invCounts(bot))).filter((v) => v > 0).reduce((s, v) => s + v, 0);
       while (gainedTotal() < want && failures < 4) {
         const me = bot.entity.position;
-        const target = bot.findBlocks({ matching: ids, maxDistance: 64, count: 64 })
-          .filter((p) => !tried.has(p.toString()) && Math.abs(p.y - me.y) <= 8 && isExposed(bot, p))
+        // Ask for many candidates: the nearest few dozen are usually buried underground.
+        const target = bot.findBlocks({ matching: ids, maxDistance: 64, count: 2000 })
+          .filter((p) => !tried.has(p.toString()) && Math.abs(p.y - me.y) <= 12 && isExposed(bot, p))
           .sort((p, q) => p.distanceTo(me) - q.distanceTo(me))[0];
-        if (!target) break;
+        if (!target) {
+          // Nothing exposed: for stone, dig down from where we stand like a player would.
+          if (ids.some((id) => ['stone', 'cobblestone', 'deepslate'].includes(bot.registry.blocks[id]?.name)) && !tried.has('digdown')) {
+            tried.add('digdown');
+            await digDown(bot, Math.min(want - gainedTotal(), 8)).catch(() => { failures++; });
+            continue;
+          }
+          break;
+        }
         tried.add(target.toString());
         try {
           await gotoPos(bot, target.x, target.y, target.z, 3, 45_000);

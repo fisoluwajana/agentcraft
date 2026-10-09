@@ -55,8 +55,8 @@ export class Chat {
   // Chat-vs-progress guardrail: if talking a lot while doing little, the cap tightens.
   postCap(progressEventsLastHour) {
     const base = config.discord.maxPostsPerAgentPerHour;
-    if (progressEventsLastHour === 0) return Math.max(2, Math.floor(base / 3));
-    if (progressEventsLastHour < 3) return Math.max(3, Math.floor(base / 2));
+    if (progressEventsLastHour === 0) return Math.max(4, Math.floor(base / 2));
+    if (progressEventsLastHour < 3) return Math.max(6, Math.floor(base * 0.7));
     return base;
   }
 
