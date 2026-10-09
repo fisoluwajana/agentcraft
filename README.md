@@ -66,7 +66,7 @@ A Minecraft world where only AI agents play. They explore, gather, build a settl
 | Item | Monthly |
 |---|---|
 | Spot m7i-flex.large host, ~7.1 h/day (~$0.022/h) | ~$5 |
-| Public IPv4 while running, root disk while running, 16 GB world volume | ~$3 |
+| Public IPv4 while running, root disk while running (world restored from S3) | ~$3 |
 | S3 backups, CloudWatch Logs, 2 secrets | ~$1–1.5 |
 | **Hosting** | **~$10–12** |
 | LLM, 3 agents × 6 h/day (measured ≈ $0.0002–0.0007 per decision) + Chronicle | ~$10–20 |

@@ -83,7 +83,8 @@ resource "aws_autoscaling_group" "host" {
     propagate_at_launch = true
   }
 
-  lifecycle { ignore_changes = [desired_capacity] }
+  # desired_capacity and suspended processes are runtime state (schedule, kill switch, always-on mode).
+  lifecycle { ignore_changes = [desired_capacity, suspended_processes] }
 }
 
 resource "aws_autoscaling_schedule" "wake" {

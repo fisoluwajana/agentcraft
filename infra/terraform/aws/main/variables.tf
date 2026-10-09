@@ -21,10 +21,6 @@ variable "instance_types" {
   default     = ["m7i-flex.large"]
 }
 
-variable "world_volume_gb" {
-  type    = number
-  default = 16
-}
 
 variable "season_timezone" {
   type    = string

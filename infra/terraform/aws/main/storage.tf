@@ -1,14 +1,3 @@
-# Legacy: the world used to live on this zonal volume. Since multi-AZ Spot (P14) the host restores the
-# world from S3 instead; the volume is kept, detached, as a last-resort copy until the owner deletes it.
-resource "aws_ebs_volume" "world" {
-  availability_zone = var.az
-  size              = var.world_volume_gb
-  type              = "gp3"
-  encrypted         = true
-  tags              = { Name = "${local.name}-world", role = "world" }
-  lifecycle { prevent_destroy = true }
-}
-
 # Backups (14-day retention) and release tarballs (30-day retention).
 resource "aws_s3_bucket" "data" {
   bucket = "${local.name}-data-${local.account}"
