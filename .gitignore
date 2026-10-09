@@ -1,0 +1,35 @@
+# Secrets: never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+.terraform.lock.hcl.bak
+
+# Node / Python
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+
+# Runtime data
+data/
+world/
+logs/
+*.log
+*.sqlite
+*.sqlite-journal
+*.db
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

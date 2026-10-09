@@ -1,0 +1,67 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "RuntimeCeilingForAllProjectRoles",
+      "Effect": "Allow",
+      "Action": [
+        "ssm:UpdateInstance*", "ssm:List*", "ssm:Describe*", "ssm:Get*", "ssm:Put*",
+        "ssm:UpdateAssociationStatus", "ssmmessages:*", "ec2messages:*",
+        "logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents", "logs:PutRetentionPolicy",
+        "logs:DescribeLogGroups", "logs:DescribeLogStreams",
+        "cloudwatch:PutMetricData", "cloudwatch:GetMetricData", "cloudwatch:ListMetrics", "cloudwatch:DescribeAlarms",
+        "ec2:DescribeInstances", "ec2:DescribeVolumes", "ec2:DescribeTags", "ec2:AttachVolume", "ec2:DetachVolume",
+        "ec2:CreateTags", "ec2:StopInstances", "ec2:TerminateInstances",
+        "autoscaling:Describe*", "autoscaling:UpdateAutoScalingGroup", "autoscaling:SetDesiredCapacity",
+        "autoscaling:SuspendProcesses", "autoscaling:ResumeProcesses", "autoscaling:CompleteLifecycleAction",
+        "autoscaling:RecordLifecycleActionHeartbeat", "autoscaling:SetInstanceHealth",
+        "bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream", "bedrock:CountTokens",
+        "bedrock:CreateModelInvocationJob", "bedrock:GetModelInvocationJob", "bedrock:ListModelInvocationJobs",
+        "bedrock:ListFoundationModels", "bedrock:GetFoundationModel", "bedrock:ListInferenceProfiles", "bedrock:GetInferenceProfile",
+        "bedrock-mantle:*",
+        "sns:Publish", "lambda:InvokeFunction",
+        "ce:GetCostAndUsage", "ce:GetCostForecast", "budgets:ViewBudget", "freetier:Get*", "freetier:List*",
+        "sts:GetCallerIdentity"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ProjectDataOnly",
+      "Effect": "Allow",
+      "Action": ["s3:*", "secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret", "secretsmanager:PutSecretValue"],
+      "Resource": [
+        "arn:aws:s3:::agentcraft-*",
+        "arn:aws:s3:::agentcraft-*/*",
+        "arn:aws:secretsmanager:*:__ACCOUNT_ID__:secret:agentcraft/*"
+      ]
+    },
+    {
+      "Sid": "PassBedrockBatchRole",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::__ACCOUNT_ID__:role/agentcraft-*",
+      "Condition": {"StringEquals": {"iam:PassedToService": "bedrock.amazonaws.com"}}
+    },
+    {
+      "Sid": "NeverMarketplace",
+      "Effect": "Deny",
+      "Action": "aws-marketplace:*",
+      "Resource": "*"
+    },
+    {
+      "Sid": "NeverMarketplaceBilledModels",
+      "Effect": "Deny",
+      "Action": ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream", "bedrock:CreateModelInvocationJob"],
+      "Resource": [
+        "arn:aws:bedrock:*::foundation-model/anthropic.*",
+        "arn:aws:bedrock:*::foundation-model/cohere.*",
+        "arn:aws:bedrock:*::foundation-model/twelvelabs.*",
+        "arn:aws:bedrock:*::foundation-model/openai.gpt-6*",
+        "arn:aws:bedrock:*:*:inference-profile/*anthropic.*",
+        "arn:aws:bedrock:*:*:inference-profile/*cohere.*",
+        "arn:aws:bedrock:*:*:inference-profile/*twelvelabs.*",
+        "arn:aws:bedrock:*:*:inference-profile/*openai.gpt-6*"
+      ]
+    }
+  ]
+}
