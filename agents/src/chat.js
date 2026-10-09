@@ -140,7 +140,7 @@ export class Chat {
     const a = words(text);
     if (a.size < 3) return false;
     const mine = openDb().prepare("SELECT text FROM chat WHERE author=? AND ts>? AND kind='message' ORDER BY id DESC LIMIT 12").all(this.name, now() - 3600_000);
-    return mine.some(({ text: t }) => { const b = words(t); const inter = [...a].filter((w) => b.has(w)).length; return inter / (a.size + b.size - inter) > 0.55; });
+    return mine.some(({ text: t }) => { const b = words(t); const inter = [...a].filter((w) => b.has(w)).length; return inter / (a.size + b.size - inter) > 0.4 || (inter >= 3 && inter / Math.min(a.size, b.size) > 0.6); });
   }
 
   async reactTo(chatId, emoji) {
