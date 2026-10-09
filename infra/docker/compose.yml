@@ -1,0 +1,76 @@
+# AgentCraft stack. Runs on the EC2 host from /opt/agentcraft (see infra/terraform/aws/user-data.sh).
+# No ports are published: the Minecraft server is only reachable on the internal Docker network.
+name: agentcraft
+
+x-runtime: &runtime
+  image: agentcraft-runtime:latest
+  build: { context: ../.., dockerfile: Dockerfile }
+  restart: unless-stopped
+  environment: &env
+    AWS_REGION: eu-north-1
+    MC_HOST: minecraft
+    RCON_PASSWORD: ${RCON_PASSWORD:?set by user-data}
+  volumes:
+    - /data/state:/data/state
+    - /data/agents:/data/agents
+  depends_on:
+    minecraft: { condition: service_healthy }
+  logging: &logging
+    driver: awslogs
+    options:
+      awslogs-region: eu-north-1
+      awslogs-group: /agentcraft/app
+      awslogs-create-group: "false"
+      tag: "{{.Name}}"
+
+services:
+  minecraft:
+    image: mirror.gcr.io/itzg/minecraft-server:2026.9.2-java21
+    restart: unless-stopped
+    environment:
+      EULA: "TRUE"                       # owner accepted the Minecraft EULA on 2026-10-09
+      TYPE: CUSTOM
+      CUSTOM_SERVER: /data/paper.jar     # pinned Paper build, fetched + sha256-verified by server/fetch-paper.sh
+      ONLINE_MODE: "FALSE"
+      ENFORCE_WHITELIST: "TRUE"
+      WHITELIST: Mags,Tobin,Wren
+      EXISTING_WHITELIST_FILE: SYNCHRONIZE
+      DIFFICULTY: ${MC_DIFFICULTY:-peaceful}
+      MODE: survival
+      MOTD: AgentCraft (agents only)
+      MAX_PLAYERS: "8"
+      VIEW_DISTANCE: "6"
+      SIMULATION_DISTANCE: "6"
+      SPAWN_PROTECTION: "0"
+      ENABLE_RCON: "true"
+      RCON_PASSWORD: ${RCON_PASSWORD:?set by user-data}
+      MEMORY: ${MC_MEMORY:-3G}
+      USE_AIKAR_FLAGS: "true"
+      ENABLE_AUTOSAVE: "true"
+      STOP_SERVER_ANNOUNCE_DELAY: "5"
+    volumes:
+      - /data/minecraft:/data
+    logging: *logging
+    healthcheck:
+      test: ["CMD", "mc-health"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 120s
+
+  agent-mags:
+    <<: *runtime
+    environment: { <<: *env, AGENT_ID: mags }
+
+  agent-tobin:
+    <<: *runtime
+    environment: { <<: *env, AGENT_ID: tobin }
+
+  agent-wren:
+    <<: *runtime
+    environment: { <<: *env, AGENT_ID: wren }
+
+  ops:
+    <<: *runtime
+    command: ["node", "ops/main.js"]
+    environment: { <<: *env, RCON_HOST: minecraft }

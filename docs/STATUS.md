@@ -18,7 +18,9 @@ Server set up 2026-10-09. Spectator invite: https://discord.gg/pHYaWcVD2A
 
 ## Phase 1 progress
 - [x] Shared lib: `agents/lib/` config, time, db (node:sqlite), llm (mantle SigV4 + cost accounting), budget, discord (webhooks + bot REST). LLM client verified live.
-- [ ] Agent runtime (skills, brain, memory, personas)
+- [~] Agent runtime: skills (`agents/src/skills.js`), brain (one JSON call = actions + chat), memory, chat pacing/caps, 3 personas, world rules. First local run works (decides, explores, posts in character). Tuning skills next.
+- [~] Ops (`ops/main.js` watchdog, votes, budget pause, chronicle trigger; `ops/digest.js`; `discord/narrator.js`) written, untested.
+- [~] Dockerfile + `infra/docker/compose.yml` written
 - [ ] Server + compose + local integration test (local Paper 1.21.11 container `mc-dev` running in build container)
 - [ ] Terraform + plan/cost for owner approval
 

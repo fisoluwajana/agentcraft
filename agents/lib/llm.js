@@ -59,7 +59,8 @@ export async function chat({ agent, callType, model, tier = 'default', messages,
   const body = { model, messages, max_tokens: maxTokens, temperature };
   if (tier === 'flex') body.service_tier = 'flex';
   if (m.reasoning) body.reasoning_effort = 'low';
-  if (json) body.response_format = { type: 'json_object' };
+  // mantle's json_object mode produced degenerate output for gpt-oss (2026-10-09); rely on the prompt + parseJsonLoose.
+  if (json && m.jsonMode) body.response_format = { type: 'json_object' };
 
   let lastErr;
   for (let attempt = 0; attempt < 4; attempt++) {
