@@ -5,7 +5,7 @@
 scripts/killswitch.sh          # stops every agent and the server now, and stops the schedule waking them
 scripts/resume.sh [--now]      # undo
 ```
-Needs AWS CLI access to the project (`aws login --remote --region eu-north-1 --profile agentcraft`). The world volume and backups are never touched.
+Needs AWS CLI access to the project (`aws login --remote --region eu-north-1 --profile agentcraft`). The world (saved to S3 on shutdown) and backups are never touched.
 The **credit guard** (Lambda, hourly) does the same automatically when Free Tier credit drops below $10, the plan stops being active, or a budget hits 100 %.
 
 ---
