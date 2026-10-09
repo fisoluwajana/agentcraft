@@ -7,7 +7,7 @@ Phase 0.3: waiting on the owner's one-batch answers (AWS bootstrap, network allo
 
 ## Done
 - 0.1 Environment checked. Blocked in the build session: discord.com, gateway.discord.gg, cdn.discordapp.com, api/fill/fill-data.papermc.io, piston-meta/piston-data.mojang.com, libraries.minecraft.net, registry.terraform.io (plus Hetzner, Oracle, Tailscale and OpenAI, none of which are needed now). All AWS endpoints, Bedrock included, are reachable.
-- 0.2 Hosting chosen: AWS eu-west-2 on a new standalone account (Paid plan), LLMs on credit-eligible Bedrock models. See DECISIONS.md.
+- 0.2 Hosting chosen: AWS eu-west-1 on a new standalone account (Paid plan), LLMs on credit-eligible Bedrock models. See DECISIONS.md.
 - Bootstrap scripts written: `infra/aws/bootstrap/`.
 
 ## Next

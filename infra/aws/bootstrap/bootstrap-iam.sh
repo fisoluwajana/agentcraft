@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # One-time bootstrap for the dedicated AgentCraft AWS account.
 #
-# Run in AWS CloudShell (region eu-west-2) while signed in as the account root
+# Run in AWS CloudShell (region eu-west-1) while signed in as the account root
 # user or an administrator of the NEW, standalone AgentCraft account:
 #
 #   git clone --depth 1 -b claude/agentcraft-minecraft-discord-il0zxj https://github.com/fisoluwajana/agentcraft.git
@@ -11,11 +11,11 @@
 #   1. Refuses to run if the account belongs to an AWS Organization (joining one forfeits Free Tier credits).
 #   2. Creates/updates three managed policies: agentcraft-boundary, agentcraft-deployer, agentcraft-deployer-guardrails.
 #   3. Creates IAM user agentcraft-deployer (no console access) and attaches the deployer + guardrail policies.
-#   4. Turns on account-wide S3 Block Public Access and default EBS encryption in eu-west-2.
+#   4. Turns on account-wide S3 Block Public Access and default EBS encryption in eu-west-1.
 #   5. Creates ONE access key for agentcraft-deployer and prints it once (pass --rotate to replace an existing key).
 set -euo pipefail
 
-REGION="eu-west-2"
+REGION="eu-west-1"
 USER_NAME="agentcraft-deployer"
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROTATE=false

@@ -2,7 +2,7 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "DenyEverythingOutsideLondon",
+      "Sid": "DenyEverythingOutsideIreland",
       "Effect": "Deny",
       "NotAction": [
         "iam:*", "sts:*", "budgets:*", "ce:*", "cur:*", "pricing:*", "freetier:*", "billing:*",
@@ -10,7 +10,7 @@
         "bedrock:*", "bedrock-mantle:*"
       ],
       "Resource": "*",
-      "Condition": {"StringNotEquals": {"aws:RequestedRegion": ["eu-west-2"]}}
+      "Condition": {"StringNotEquals": {"aws:RequestedRegion": ["eu-west-1"]}}
     },
     {
       "Sid": "DenyNonGravitonOrOversizedInstances",
