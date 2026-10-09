@@ -3,10 +3,10 @@
 # Usage: server/fetch-paper.sh <minecraft data dir>
 set -euo pipefail
 DIR="${1:?data dir}"
-PAPER_VERSION=1.21.11
-PAPER_BUILD=132
-PAPER_SHA256=5ffef465eeeb5f2a3c23a24419d97c51afd7dbb4923ff42df9a3f58bba1ccfba
-MOJANG_SHA1=64bb6d763bed0a9f1d632ec347938594144943ed
+PAPER_VERSION=1.21.4
+PAPER_BUILD=232
+PAPER_SHA256=5ee4f542f628a14c644410b08c94ea42e772ef4d29fe92973636b6813d4eaffc
+MOJANG_SHA1=4707d00eb834b446575d89a61a11b5d548d8c001
 UA="AgentCraft/0.1 (github.com/fisoluwajana/agentcraft)"
 mkdir -p "$DIR/cache"
 if ! echo "$PAPER_SHA256  $DIR/paper.jar" | sha256sum -c - >/dev/null 2>&1; then

@@ -21,9 +21,9 @@ Server set up 2026-10-09. Spectator invite: https://discord.gg/pHYaWcVD2A
 - [~] Agent runtime (crafting fixed via verified RCON fallback; collect rewritten; pathfinder bounded; plan pre-emption; failure backoff; loose place names): skills (`agents/src/skills.js`), brain (one JSON call = actions + chat), memory, chat pacing/caps, 3 personas, world rules. First local run works (decides, explores, posts in character). Tuning skills next.
 - [~] Ops (`ops/main.js` watchdog, votes, budget pause, chronicle trigger; `ops/digest.js`; `discord/narrator.js`) written, untested.
 - [~] Dockerfile + `infra/docker/compose.yml` written
-- [ ] Server + compose + local integration test (local Paper 1.21.11 container `mc-dev` running in build container)
+- [ ] Server + compose + local integration test (local Paper 1.21.4 (seed 8675309) container `mc-dev` running in build container)
 - [~] Terraform written and `terraform validate` passes: `infra/terraform/aws/bootstrap` (state bucket) and `infra/terraform/aws/main` (VPC without NAT, egress-only SG, S3 gateway endpoint, world EBS volume, data bucket with 14-day backup lifecycle, instance role under a permissions boundary, Spot ASG 0–1 with schedules 17:45/00:50 Europe/London, drain lifecycle hook, credit-guard Lambda hourly plus Budgets via SNS). Not yet planned or applied; needs owner "go".
-- [x] Scripts: `scripts/killswitch.sh`, `scripts/resume.sh`, `scripts/deploy.sh`, `scripts/dev-run.sh`; host: `ops/host/agentcraft-backup.sh`, `ops/host/agentcraft-drain.sh`; `server/fetch-paper.sh` (pinned Paper 1.21.11 build 132 + Mojang jar, checksummed)
+- [x] Scripts: `scripts/killswitch.sh`, `scripts/resume.sh`, `scripts/deploy.sh`, `scripts/dev-run.sh`; host: `ops/host/agentcraft-backup.sh`, `ops/host/agentcraft-drain.sh`; `server/fetch-paper.sh` (pinned Paper 1.21.4 (seed 8675309) build 132 + Mojang jar, checksummed)
 
 ## Next
 1. AWS login done (profile `agentcraft`, eu-north-1, Free plan, $100 credit). Owner: Discord bots, network allowlist, checklist answers.

@@ -5,7 +5,7 @@ import pf from 'mineflayer-pathfinder';
 import toolPlugin from 'mineflayer-tool';
 import { execSync } from 'node:child_process';
 import { SKILLS, setupMovements } from '../../agents/src/skills.js';
-const bot = mineflayer.createBot({ host: '127.0.0.1', port: 25565, username: 'CraftTest', version: '1.21.11', auth: 'offline' });
+const bot = mineflayer.createBot({ host: '127.0.0.1', port: 25565, username: 'CraftTest', version: '1.21.4', auth: 'offline' });
 bot.loadPlugin(pf.pathfinder); bot.loadPlugin(toolPlugin.plugin);
 const inv = () => bot.inventory.items().map((i) => `${i.name}x${i.count}`).join(',');
 bot.once('spawn', async () => {

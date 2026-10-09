@@ -1,6 +1,6 @@
 import mineflayer from 'mineflayer';
 import { execSync } from 'node:child_process';
-const V = process.env.V || '1.21.11';
+const V = process.env.V || '1.21.4';
 const bot = mineflayer.createBot({ host: '127.0.0.1', port: 25565, username: 'CraftTest', version: V, auth: 'offline' });
 const rc = (c) => execSync(`docker exec mc-dev rcon-cli "${c}"`).toString().trim();
 bot.on('windowOpen', (w) => console.log('windowOpen', w.type, w.title));

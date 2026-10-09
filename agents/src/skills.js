@@ -54,13 +54,24 @@ async function withTimeout(promise, ms, what) {
   } finally { clearTimeout(t); }
 }
 
+// mineflayer-pathfinder keeps a "stop requested" flag after stop() until the goal is reset; any
+// goto started before that fails instantly with "Path was stopped". Always reset before and after.
+async function resetPath(bot) {
+  try { bot.pathfinder.stop(); bot.pathfinder.setGoal(null); } catch { /* ignore */ }
+  await sleep(250);
+}
+
 export async function gotoPos(bot, x, y, z, range = 2, timeoutMs = 90_000) {
   const goal = y == null ? new goals.GoalNearXZ(x, z, range) : new goals.GoalNear(x, y, z, range);
+  await resetPath(bot);
   try {
     await withTimeout(bot.pathfinder.goto(goal), timeoutMs, 'walking');
   } catch (e) {
-    bot.pathfinder.stop();
-    throw new SkillError(`couldn't reach ${Math.round(x)},${y == null ? '~' : Math.round(y)},${Math.round(z)}: ${e.message}`);
+    await resetPath(bot);
+    // Close enough counts: steep terrain often leaves us a few blocks short.
+    const d = y == null ? Math.hypot(bot.entity.position.x - x, bot.entity.position.z - z) : bot.entity.position.distanceTo(new Vec3(x, y, z));
+    if (d <= range + 3) return;
+    throw new SkillError(`couldn't reach ${Math.round(x)},${y == null ? '~' : Math.round(y)},${Math.round(z)} (${Math.round(d)} blocks short): ${e.message.slice(0, 60)}`);
   }
 }
 

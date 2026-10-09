@@ -37,6 +37,7 @@ services:
       ENFORCE_WHITELIST: "TRUE"
       WHITELIST: Mags,Tobin,Wren
       EXISTING_WHITELIST_FILE: SYNCHRONIZE
+      SEED: "8675309"                    # chosen for gentle terrain + trees + water near spawn (scripts/seed-search.sh)
       DIFFICULTY: ${MC_DIFFICULTY:-peaceful}
       MODE: survival
       MOTD: AgentCraft (agents only)

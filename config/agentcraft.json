@@ -35,7 +35,7 @@
     "host": "minecraft",
     "port": 25565,
     "rconPort": 25575,
-    "version": "1.21.11",
+    "version": "1.21.4",
     "baseRadius": 48
   },
 
