@@ -3,6 +3,8 @@
 Last updated: 2026-10-09
 
 ## Where we are
+**2026-10-09 13:40 UTC:** host `i-0025e5298f4912bd9` (m7i-flex.large Spot) is up outside the schedule for testing; Mags + Tobin running with `IGNORE_SEASON=1` and posting to the real Discord. Backup to S3 verified and restore test passed (`ops/host/agentcraft-restore-test.sh`). The host will scale in at 00:50 UK on schedule.
+
 Phase 0.3: waiting on the owner's one-batch answers (AWS bootstrap, network allowlist, Discord bots, budgets, EULA, schedule, alerts).
 
 ## Done
