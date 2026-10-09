@@ -67,7 +67,10 @@ function worldText() {
 
 export function userPrompt({ bot, mem, chatLog, events, others, timeOfDay, minutesLeft, goals }) {
   const p = bot.entity.position;
-  const lines = chatLog.map((m) => `[${m.id}] #${m.channel} ${m.author}${m.reply_to ? ` (replying to ${m.reply_to})` : ''}: ${m.text}`).join('\n') || '(quiet)';
+  const fmt = (m) => `[${m.id}] ${m.author}${m.reply_to ? ` (replying to ${m.reply_to})` : ''}: ${m.text}`;
+  const byChan = {};
+  for (const m of chatLog) (byChan[m.channel] ||= []).push(m);
+  const lines = Object.entries(byChan).map(([c, ms]) => `#${c}\n${ms.map(fmt).join('\n')}`).join('\n') || '(quiet)';
   return `NOW
 Position ${Math.round(p.x)},${Math.round(p.y)},${Math.round(p.z)}. Health ${Math.round(bot.health)}/20, food ${Math.round(bot.food)}/20. In-game ${timeOfDay}. About ${minutesLeft} min of today's session left.
 Inventory: ${inventoryText(bot)}

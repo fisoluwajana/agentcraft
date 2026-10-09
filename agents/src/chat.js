@@ -31,6 +31,13 @@ export class Chat {
     return q.reverse();
   }
 
+  // Recent lines per world channel (most recent channels first), so side conversations stay visible.
+  recentAcross(perChannel = { general: 7, 'off-topic': 4, builds: 3, 'town-hall': 4 }) {
+    const out = [];
+    for (const [c, n] of Object.entries(perChannel)) out.push(...this.recent(n, c).filter((m) => m.kind === 'message' || m.kind === 'system'));
+    return out.sort((a, b) => a.id - b.id);
+  }
+
   addressedToMe(msg) {
     const t = msg.text.toLowerCase();
     if (t.includes(this.name.toLowerCase()) || t.includes('everyone') || t.includes('@all')) return true;
@@ -87,7 +94,8 @@ export class Chat {
     const cap = this.postCap(progressEventsLastHour);
     for (const it of items.slice(0, 4)) {
       if (it.react?.message_id) { await this.reactTo(it.react.message_id, it.react.emoji); continue; }
-      const channel = config.discord.worldChannels.includes(it.channel) ? it.channel : 'general';
+      let channel = config.discord.worldChannels.includes(it.channel) ? it.channel : 'general';
+      if (it.civic || /\bvote\b|\bvoting\b|\bpropos/i.test(it.text || '')) channel = 'town-hall';
       const text = this.clean(it.text);
       if (!text || this.isRepeat(text)) continue;
       if (it.reply_to_id && openDb().prepare('SELECT author FROM chat WHERE id=?').get(it.reply_to_id)?.author === this.name) it.reply_to_id = null;

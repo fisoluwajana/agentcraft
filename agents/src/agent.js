@@ -150,16 +150,18 @@ class Agent {
     const minutesLeft = sm == null ? 60 : seasonLengthMinutes() - sm;
     const events = this.events.splice(0).map((e) => e.text);
     if (!events.length) events.push('nothing new; you are free to pick what to do');
+    if (events.length <= 1 && Math.random() < 0.25) events.push('(quiet moment: if a stray thought, theory, complaint or joke comes to mind that is not about the current job, #off-topic is for that)');
     const others = Object.keys(b.players).filter((n) => n !== b.username && b.players[n].entity).map((n) => `${n} (${Math.round(b.players[n].entity.position.distanceTo(b.entity.position))}m)`);
     const goals = this.mem.goals;
     this.lastDecision = now();
     const d = await decide({ agentId: ID, model: A.model, persona: P, agenda: this.agenda,
-      ctx: { bot: b, mem: this.mem, chatLog: this.chat.recent(10), events, others, timeOfDay: tod, minutesLeft, goals } });
+      ctx: { bot: b, mem: this.mem, chatLog: this.chat.recentAcross(), events, others, timeOfDay: tod, minutesLeft, goals } });
     log(`think ($${(d._usd || 0).toFixed(5)}): ${d.thought || ''}${d._raw ? ` RAW=${JSON.stringify(d._raw)}` : ''} | plan=${d.plan.map((s) => s.skill).join(',') || '-'} | say=${d.say.length}`);
     if (Array.isArray(d.goals) && d.goals.length) this.mem.goals = d.goals.slice(0, 5).map((g) => ({ goal: String(g).slice(0, 140), status: 'open' }));
     for (const r of Array.isArray(d.relationships) ? d.relationships : []) this.mem.updateRelationship(String(r.who || '').toLowerCase(), r);
     for (const c of applyCivics(P.name, d)) { this.push('civics', c); this.progress(c); }
     if (d.react?.length) for (const r of d.react.slice(0, 2)) await this.chat.reactTo(r.message_id, r.emoji);
+    if (d.vote && d.say.length) d.say = d.say.map((x) => ({ ...x, civic: true }));
     if (d.say.length) this.chat.say(d.say, this.progressLastHour()).catch((e) => log('say failed', e.message));
     if (d.plan.length) await this.replacePlan(d.plan);
   }
@@ -192,6 +194,7 @@ class Agent {
           const gainedAny = res.gained && Object.values(res.gained).some((v) => v > 0);
           if (gainedAny || res.built || ['store', 'give', 'mark', 'craft', 'smelt'].includes(step.skill)) this.progress(res.summary);
           if (step.skill === 'explore') for (const f of scanSurroundings(this.bot)) this.ctxApi().discover(f);
+          if (res.built || step.skill.startsWith('build')) this.push('built', `finished: ${res.summary}. #builds is where people show builds off (if you feel like it)`, true);
         } catch (e) {
           const msg = e instanceof SkillError ? e.message : `${e.message}`.slice(0, 160);
           log(`✗ ${step.skill}: ${msg}`);
