@@ -40,7 +40,7 @@ Budgets £15 hosting / £60 LLM per month (~$20 / ~$80) · stop everything when 
 - **Models (mantle, eu-north-1, $/1M in/out):** gpt-oss-120b 0.15/0.60, Qwen3 235B 2507 0.22/0.88, GLM-4.7 Flash 0.08/0.48, Mistral Large 3 0.60/1.80, Kimi K2.5 0.72/3.60. "flex" tier ≈ 50 % off for non-real-time work. Final per-role picks come from a benchmark.
 
 ## 5b. Current operating mode
-Always-on mode (see `docs/STATUS.md`): `scripts/always-on.sh on|off`.
+Schedule: evenings only, 18:00-00:00 UK (O9). Always-on for testing: `scripts/always-on.sh on|off` (see `docs/STATUS.md`).
 
 ## 6. Repo map
 | Path | What |

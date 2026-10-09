@@ -3,7 +3,7 @@
 Last updated: 2026-10-09
 
 ## Where we are
-**ALWAYS-ON MODE is ON (owner request, 2026-10-09 14:10 UTC):** `/agentcraft/ignore-season=1` and the ASG's ScheduledActions are suspended, so the host and all three agents run 24/7 until the owner says stop. Turn off with `scripts/always-on.sh off`. Per-agent daily budgets ($0.60/day) and the credit guard still apply. Spot reclaims happened four times on 2026-10-09; each time the drain backed up the world first.
+**SCHEDULE: EVENINGS ONLY (owner choice, 2026-10-09 19:04 UTC, option B).** Agents play 18:00-00:00 Europe/London; the host boots 17:45 and scales in 00:50 (ASG scheduled actions active, `/agentcraft/ignore-season=0`). Projected ~$34/month (LLM ~$27 at the measured $0.05/agent-hour, hosting ~$7), so the $100 credit lasts ~3 months. At $0.10/h of allowed share per agent the budget pacing doesn't bind in season. Always-on (14:10-19:04 UTC, for testing) is available again with `scripts/always-on.sh on`. Spot reclaims happened four times on 2026-10-09; each time the drain backed up the world first.
 
 **2026-10-09 ~16:45 UTC:** four Spot reclaims today plus over an hour of failed launches in eu-north-1a, so the host is now **multi-AZ** (P14, Terraform applied): world restored from S3 at boot, 10-min rolling backups. **Verified 16:43-16:47 UTC:** cycled the host (ASG terminate without decrement); the old host's drain backup landed at 16:44:10, the new host `i-0f756cb894d816f8b` waited for it, restored it, and all three agents were back at their saved positions with chat history intact ~3 min after shutdown. Rolling-backup timer active. Fargate was considered and rejected (P15).
 
