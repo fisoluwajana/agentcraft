@@ -54,7 +54,8 @@ echo "== paper"
 echo "== secrets into the compose env (never logged)"
 umask 077
 RCON=$(aws ssm get-parameter --name /agentcraft/rcon-password --with-decryption --query Parameter.Value --output text)
-printf 'RCON_PASSWORD=%s\n' "$RCON" > /opt/agentcraft/infra/docker/.env 2>/dev/null || true
+IGNORE=$(aws ssm get-parameter --name /agentcraft/ignore-season --query Parameter.Value --output text 2>/dev/null || echo 0)
+printf 'RCON_PASSWORD=%s\nIGNORE_SEASON=%s\n' "$RCON" "$IGNORE" > /opt/agentcraft/infra/docker/.env 2>/dev/null || true
 
 echo "== helpers"
 install -m 0755 /opt/agentcraft/ops/host/*.sh /usr/local/bin/ 2>/dev/null || true

@@ -16,7 +16,7 @@ aws "${A[@]}" ssm put-parameter --name /agentcraft/release --value "$SHA" --type
 echo "release $SHA uploaded"
 IDS=$(aws "${A[@]}" ec2 describe-instances --filters Name=tag:project,Values=agentcraft Name=instance-state-name,Values=running --query 'Reservations[].Instances[].InstanceId' --output text)
 if [ -n "$IDS" ]; then
-  CMD="set -e; aws s3 cp s3://$BUCKET/releases/$SHA.tar.gz /tmp/r.tgz; cd /opt/agentcraft; cp infra/docker/.env /tmp/.env.keep; find . -mindepth 1 -delete; tar -xzf /tmp/r.tgz; cp /tmp/.env.keep infra/docker/.env; install -m 0755 ops/host/*.sh /usr/local/bin/; server/fetch-paper.sh /data/minecraft; cd infra/docker && docker compose up -d --build --remove-orphans"
+  CMD="set -e; aws s3 cp s3://$BUCKET/releases/$SHA.tar.gz /tmp/r.tgz; cd /opt/agentcraft; cp infra/docker/.env /tmp/.env.keep; find . -mindepth 1 -delete; tar -xzf /tmp/r.tgz; cp /tmp/.env.keep infra/docker/.env; sed -i '/^IGNORE_SEASON=/d' infra/docker/.env; echo IGNORE_SEASON=\$(aws ssm get-parameter --region eu-north-1 --name /agentcraft/ignore-season --query Parameter.Value --output text) >> infra/docker/.env; install -m 0755 ops/host/*.sh /usr/local/bin/; server/fetch-paper.sh /data/minecraft; cd infra/docker && docker compose up -d --build --remove-orphans"
   # shellcheck disable=SC2086
   aws "${A[@]}" ssm send-command --instance-ids $IDS --document-name AWS-RunShellScript \
     --parameters "commands=[\"$CMD\"]" --comment "agentcraft deploy $SHA" --query Command.CommandId --output text

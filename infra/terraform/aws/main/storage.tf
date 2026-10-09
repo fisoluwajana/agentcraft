@@ -65,6 +65,13 @@ resource "aws_ssm_parameter" "rcon" {
   value = random_password.rcon.result
 }
 
+resource "aws_ssm_parameter" "ignore_season" {
+  name  = "/agentcraft/ignore-season"
+  type  = "String"
+  value = "0"
+  lifecycle { ignore_changes = [value] } # "1" = agents play outside season hours (read at every boot)
+}
+
 resource "aws_ssm_parameter" "release" {
   name  = "/agentcraft/release"
   type  = "String"
