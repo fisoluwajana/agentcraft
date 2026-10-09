@@ -4,6 +4,7 @@ import { config } from '../agents/lib/config.js';
 import { openDb } from '../agents/lib/db.js';
 import { chat } from '../agents/lib/llm.js';
 import { postAs } from '../agents/lib/discord.js';
+import { renderDayMap } from '../ops/map.js';
 
 const CHRONICLER = { username: 'The Chronicler', avatarUrl: 'https://api.dicebear.com/9.x/pixel-art/png?seed=TheChronicler&size=128' };
 
@@ -38,6 +39,11 @@ export async function runChronicle(day) {
   if (!text) throw new Error('narrator returned nothing');
   openDb().prepare("INSERT INTO chat(ts,day,channel,author,text,kind) VALUES(?,?,?,?,?,'chronicle')").run(Date.now(), day, 'the-chronicle', CHRONICLER.username, text);
   await postAs({ channel: config.discord.chronicleChannel, ...CHRONICLER, content: text });
+  // The day's map goes underneath as its own post (image + numbered legend). Never fails the Chronicle.
+  try {
+    const map = renderDayMap(day);
+    if (map) await postAs({ channel: config.discord.chronicleChannel, ...CHRONICLER, content: map.legend, files: [{ name: `map-${day}.png`, data: map.png, type: 'image/png' }] });
+  } catch (e) { console.error('[chronicle] map failed:', e.message); }
   return { usd: r.usd, chars: text.length };
 }
 

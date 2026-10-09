@@ -10,6 +10,7 @@ import { config, agentConfig, ROOT } from '../lib/config.js';
 import { openDb, now, logEvent, kvGet } from '../lib/db.js';
 import { seasonMinute, seasonLengthMinutes, seasonDay, sleep } from '../lib/time.js';
 import { BudgetExceeded } from '../lib/budget.js';
+import { snapshotSurface, recordTrack } from '../lib/mapdata.js';
 import { ops, postAs } from '../lib/discord.js';
 import { SKILLS, SkillError, setupMovements, scanSurroundings, invCounts, withTimeout } from './skills.js';
 import { Memory } from './memory.js';
@@ -104,6 +105,18 @@ class Agent {
       bot.on('end', (reason) => { log('disconnected:', reason); this.bot = null; });
       this.bot = bot;
     });
+  }
+
+  // Map data for the Chronicle: track every 2 min, surface of nearby chunks every 10 min (staggered per agent).
+  mapTick() {
+    if (!this.bot?.entity) return;
+    const t = now();
+    if (t - (this.lastTrack || 0) > 120_000) { this.lastTrack = t; try { recordTrack(ID, this.bot, seasonDay()); } catch (e) { log('track failed', e.message); } }
+    if (t - (this.lastSurface || 0) > 600_000) {
+      if (!this.lastSurface) { this.lastSurface = t - 600_000 + 60_000 + Math.random() * 240_000; return; } // first one 1-5 min after login
+      this.lastSurface = t;
+      try { const t0 = Date.now(); const n = snapshotSurface(this.bot); log(`map: saved ${n} chunks in ${Date.now() - t0} ms`); } catch (e) { log('map snapshot failed', e.message); }
+    }
   }
 
   heartbeat() {
@@ -280,6 +293,7 @@ class Agent {
       }
       try {
         this.heartbeat();
+        this.mapTick();
         await this.pollCommands();
         this.readChat();
         await this.seasonTick();

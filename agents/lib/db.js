@@ -49,6 +49,9 @@ CREATE TABLE IF NOT EXISTS ballots (vote_id INTEGER, agent TEXT, option TEXT, re
 
 CREATE TABLE IF NOT EXISTS commands (
   id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER, target TEXT, command TEXT, args TEXT, done_ts INTEGER);
+CREATE TABLE IF NOT EXISTS map_chunks (cx INTEGER, cz INTEGER, ts INTEGER, rgb BLOB, height BLOB, PRIMARY KEY (cx, cz));
+CREATE TABLE IF NOT EXISTS map_tracks (agent TEXT, day TEXT, ts INTEGER, x INTEGER, z INTEGER);
+CREATE INDEX IF NOT EXISTS map_tracks_day ON map_tracks(day);
 `;
 
 let db;

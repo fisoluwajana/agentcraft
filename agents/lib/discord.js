@@ -21,8 +21,9 @@ async function request(method, url, body, auth = true) {
   for (let attempt = 0; attempt < 5; attempt++) {
     const headers = { 'User-Agent': UA };
     if (auth) headers.Authorization = `Bot ${secret.system_bot_token.trim()}`;
-    if (body !== undefined) headers['Content-Type'] = 'application/json';
-    const res = await fetch(url, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(20_000) });
+    const multipart = body instanceof FormData; // fetch sets the multipart boundary header itself
+    if (body !== undefined && !multipart) headers['Content-Type'] = 'application/json';
+    const res = await fetch(url, { method, headers, body: body === undefined ? undefined : multipart ? body : JSON.stringify(body), signal: AbortSignal.timeout(30_000) });
     if (res.status === 429) {
       const j = await res.json().catch(() => ({}));
       await sleep((j.retry_after ?? 1) * 1000 + 250);
@@ -39,14 +40,16 @@ async function request(method, url, body, auth = true) {
 const noMentions = { parse: [] };
 
 // Post as an agent (or the Chronicler). Returns the Discord message id.
-export async function postAs({ channel, username, avatarUrl, content, threadId }) {
-  if (config.dryRunDiscord) { console.log(`[discord dry-run] #${channel} <${username}> ${content}`); return `dry-${Date.now()}`; }
+// files: optional [{ name: 'map.png', data: Buffer, type: 'image/png' }] (sent as multipart attachments).
+export async function postAs({ channel, username, avatarUrl, content, threadId, files }) {
+  if (config.dryRunDiscord) { console.log(`[discord dry-run] #${channel} <${username}> ${content}${files?.length ? ` [+${files.map((f) => f.name).join(', ')}]` : ''}`); return `dry-${Date.now()}`; }
   await loadDiscordSecret();
   const hook = secret.webhooks?.[channel];
   if (!hook) throw new Error(`No webhook for #${channel}`);
   const q = new URLSearchParams({ wait: 'true' });
   if (threadId) q.set('thread_id', threadId);
-  const m = await request('POST', `${hook}?${q}`, { content: content.slice(0, 1990), username, avatar_url: avatarUrl, allowed_mentions: noMentions }, false);
+  const payload = { content: (content || '').slice(0, 1990), username, avatar_url: avatarUrl, allowed_mentions: noMentions };
+  const m = await request('POST', `${hook}?${q}`, withFiles(payload, files), false);
   return m.id;
 }
 
@@ -65,11 +68,19 @@ export async function startThread({ channel, messageId, name }) {
   return t.id;
 }
 
-export async function ops(text) {
+function withFiles(payload, files) {
+  if (!files?.length) return payload;
+  const form = new FormData();
+  form.append('payload_json', JSON.stringify({ ...payload, attachments: files.map((f, i) => ({ id: i, filename: f.name })) }));
+  files.forEach((f, i) => form.append(`files[${i}]`, new Blob([f.data], { type: f.type || 'application/octet-stream' }), f.name));
+  return form;
+}
+
+export async function ops(text, files) {
   console.log(`[ops] ${text}`);
   if (config.dryRunDiscord) return;
   try {
     await loadDiscordSecret();
-    await request('POST', `${API}/channels/${secret.channel_ids[config.discord.opsChannel]}/messages`, { content: text.slice(0, 1990), allowed_mentions: noMentions });
+    await request('POST', `${API}/channels/${secret.channel_ids[config.discord.opsChannel]}/messages`, withFiles({ content: text.slice(0, 1990), allowed_mentions: noMentions }, files));
   } catch (e) { console.error('ops post failed:', e.message); }
 }
