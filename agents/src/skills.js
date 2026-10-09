@@ -546,6 +546,9 @@ async function craft(bot, a, depth = 0) {
   const item = reg.itemsByName[name];
   if (!item) throw new SkillError(`unknown item '${a.item}'`);
   const n = Math.min(Math.max(Number(a.count) || 1, 1), 64);
+  if (/_(pickaxe|axe|shovel|hoe|sword)$/.test(name) && count(bot, name) >= 1 && !a.extra) {
+    throw new SkillError(`you already have a ${name}; use it (or pass "extra": true to make a spare for someone)`);
+  }
   const before = invCounts(bot);
   const tableBlock = () => bot.findBlock({ matching: reg.blocksByName.crafting_table.id, maxDistance: 24 });
 
