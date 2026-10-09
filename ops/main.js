@@ -5,7 +5,7 @@ import { config } from '../agents/lib/config.js';
 import { openDb, now, kvGet, kvSet, logEvent } from '../agents/lib/db.js';
 import { seasonMinute, seasonLengthMinutes, seasonDay, localParts, sleep } from '../agents/lib/time.js';
 import { spend } from '../agents/lib/budget.js';
-import { ops } from '../agents/lib/discord.js';
+import { ops, postAs } from '../agents/lib/discord.js';
 import { runChronicle, runWeeklyRecap } from '../discord/narrator.js';
 import { weeklyDigest } from './digest.js';
 
@@ -95,10 +95,24 @@ async function closeVotes() {
     const ballots = db.prepare('SELECT option, COUNT(*) n FROM ballots WHERE vote_id=? GROUP BY option ORDER BY n DESC').all(v.id);
     const result = ballots[0] ? (ballots[1] && ballots[1].n === ballots[0].n ? 'tie' : ballots[0].option) : 'no votes';
     db.prepare("UPDATE votes SET status='closed', result=? WHERE id=?").run(result, v.id);
-    db.prepare("INSERT INTO chat(ts,day,channel,author,text,kind) VALUES(?,?,?,?,?,'system')")
-      .run(now(), seasonDay(), 'town-hall', 'Town Ledger', `Vote #${v.id} closed: "${v.question}" → ${result} (${ballots.map((b) => `${b.option}: ${b.n}`).join(', ') || 'no ballots'})`);
+    const text = `🗳️ **Vote #${v.id} closed:** ${v.question}\n**Result: ${result}** (${ballots.map((b) => `${b.option}: ${b.n}`).join(', ') || 'no ballots'})`;
+    db.prepare("INSERT INTO chat(ts,day,channel,author,text,kind) VALUES(?,?,?,?,?,'system')").run(now(), seasonDay(), 'town-hall', 'Town Ledger', text);
+    await postAs({ channel: 'town-hall', username: 'Town Ledger', avatarUrl: 'https://api.dicebear.com/9.x/icons/png?seed=ledger&size=128', content: text }).catch((e) => log('ledger post failed', e.message));
     logEvent(seasonDay(), null, 'vote_closed', { id: v.id, question: v.question, result });
   }
+}
+
+// Every ~2 h with no open vote, ask one agent (rotating) whether a group decision needs settling.
+function decisionNudge() {
+  const db = openDb();
+  if (db.prepare("SELECT COUNT(*) n FROM votes WHERE status='open'").get().n) return;
+  const last = kvGet('decision_nudge_ts', 0);
+  if (now() - last < 2 * 3600_000) return;
+  if (db.prepare("SELECT COUNT(*) n FROM chat WHERE kind='message' AND ts>?").get(now() - 3600_000).n < 10) return; // only once they're actually talking
+  const i = kvGet('decision_nudge_i', 0);
+  const a = config.agents[i % config.agents.length];
+  command(a.id, 'note', { text: 'Is there a group decision worth settling properly (where the base goes, what it is called, who owns which job, what to build next)? If people disagree, propose a vote in #town-hall with 2-3 clear options. If nothing needs deciding, ignore this.' });
+  kvSet('decision_nudge_ts', now()); kvSet('decision_nudge_i', i + 1);
 }
 
 // ---------------------------------------------------------------- global budget
@@ -119,6 +133,7 @@ async function budgetCheck() {
 async function tick() {
   await watchdog().catch((e) => log('watchdog error', e.message));
   await closeVotes().catch((e) => log('votes error', e.message));
+  try { if (process.env.IGNORE_SEASON === '1' || seasonMinute() != null) decisionNudge(); } catch (e) { log('nudge error', e.message); }
   await budgetCheck().catch((e) => log('budget error', e.message));
 
   // Chronicle: once per season day, shortly after the session ends.

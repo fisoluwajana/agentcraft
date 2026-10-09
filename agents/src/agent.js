@@ -10,7 +10,7 @@ import { config, agentConfig, ROOT } from '../lib/config.js';
 import { openDb, now, logEvent, kvGet } from '../lib/db.js';
 import { seasonMinute, seasonLengthMinutes, seasonDay, sleep } from '../lib/time.js';
 import { BudgetExceeded } from '../lib/budget.js';
-import { ops } from '../lib/discord.js';
+import { ops, postAs } from '../lib/discord.js';
 import { SKILLS, SkillError, setupMovements, scanSurroundings, invCounts, withTimeout } from './skills.js';
 import { Memory } from './memory.js';
 import { Chat } from './chat.js';
@@ -30,6 +30,14 @@ async function loadAgenda() {
     const r = await sm.send(new GetSecretValueCommand({ SecretId: config.agendasSecretId }));
     return JSON.parse(r.SecretString)[ID];
   } catch (e) { log('no agenda:', e.message); return null; }
+}
+
+export const LEDGER = { username: 'Town Ledger', avatarUrl: 'https://api.dicebear.com/9.x/icons/png?seed=ledger&size=128' };
+
+async function announceVote(v) {
+  const text = `🗳️ **Vote #${v.id}** (proposed by ${v.by}): ${v.question}\n${v.options.map((o, i) => `${i + 1}. ${o}`).join('\n')}\nCloses in ${v.hours} h.`;
+  openDb().prepare("INSERT INTO chat(ts,day,channel,author,text,kind) VALUES(?,?,?,?,?,'system')").run(now(), seasonDay(), 'town-hall', LEDGER.username, text);
+  await postAs({ channel: 'town-hall', ...LEDGER, content: text });
 }
 
 class Agent {
@@ -159,7 +167,9 @@ class Agent {
     log(`think ($${(d._usd || 0).toFixed(5)}): ${d.thought || ''}${d._raw ? ` RAW=${JSON.stringify(d._raw)}` : ''} | plan=${d.plan.map((s) => s.skill).join(',') || '-'} | say=${d.say.length}`);
     if (Array.isArray(d.goals) && d.goals.length) this.mem.goals = d.goals.slice(0, 5).map((g) => ({ goal: String(g).slice(0, 140), status: 'open' }));
     for (const r of Array.isArray(d.relationships) ? d.relationships : []) this.mem.updateRelationship(String(r.who || '').toLowerCase(), r);
-    for (const c of applyCivics(P.name, d)) { this.push('civics', c); this.progress(c); }
+    const civics = applyCivics(P.name, d);
+    for (const c of civics) { this.push('civics', c); this.progress(c); }
+    if (civics.announce) await announceVote(civics.announce).catch((e) => log('vote announce failed', e.message));
     if (d.react?.length) for (const r of d.react.slice(0, 2)) await this.chat.reactTo(r.message_id, r.emoji);
     if (d.vote && d.say.length) d.say = d.say.map((x) => ({ ...x, civic: true }));
     if (d.say.length) this.chat.say(d.say, this.progressLastHour()).catch((e) => log('say failed', e.message));

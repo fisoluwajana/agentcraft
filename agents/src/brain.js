@@ -127,8 +127,9 @@ export function applyCivics(agentName, d) {
   const v = d.vote || {};
   if (v.propose?.question && Array.isArray(v.propose.options) && v.propose.options.length >= 2) {
     const hours = Math.min(Math.max(Number(v.propose.hours) || 24, 1), 72);
-    db.prepare('INSERT INTO votes(question,options,opened_by,opened_ts,closes_ts) VALUES(?,?,?,?,?)').run(String(v.propose.question).slice(0, 200), JSON.stringify(v.propose.options.slice(0, 5)), agentName, now(), now() + hours * 3600_000);
+    const r = db.prepare('INSERT INTO votes(question,options,opened_by,opened_ts,closes_ts) VALUES(?,?,?,?,?)').run(String(v.propose.question).slice(0, 200), JSON.stringify(v.propose.options.slice(0, 5)), agentName, now(), now() + hours * 3600_000);
     out.push(`opened a vote: ${v.propose.question}`);
+    out.announce = { id: Number(r.lastInsertRowid), question: String(v.propose.question).slice(0, 200), options: v.propose.options.slice(0, 5), hours, by: agentName };
   }
   if (v.cast?.vote_id && v.cast.option) {
     db.prepare('INSERT INTO ballots(vote_id,agent,option,reason,ts) VALUES(?,?,?,?,?) ON CONFLICT(vote_id,agent) DO UPDATE SET option=excluded.option, reason=excluded.reason, ts=excluded.ts')

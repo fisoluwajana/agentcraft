@@ -95,7 +95,11 @@ export class Chat {
     for (const it of items.slice(0, 4)) {
       if (it.react?.message_id) { await this.reactTo(it.react.message_id, it.react.emoji); continue; }
       let channel = config.discord.worldChannels.includes(it.channel) ? it.channel : 'general';
-      if (it.civic || /\bvote\b|\bvoting\b|\bpropos/i.test(it.text || '')) channel = 'town-hall';
+      const civicTalk = /\bvot(e|es|ed|ing)\b|\bpropos|\bmayor\b|\belect|\bdecid|\bshould we\b|\bmotion\b|\bballot/i.test(it.text || '');
+      const openVote = openDb().prepare("SELECT COUNT(*) n FROM votes WHERE status='open'").get().n > 0;
+      if (it.civic || (civicTalk && openVote)) channel = 'town-hall';
+      // #town-hall is only for decisions: anything else posted there moves to #general.
+      else if (channel === 'town-hall' && !civicTalk) channel = 'general';
       const text = this.clean(it.text);
       if (!text || this.isRepeat(text)) continue;
       if (it.reply_to_id && openDb().prepare('SELECT author FROM chat WHERE id=?').get(it.reply_to_id)?.author === this.name) it.reply_to_id = null;
