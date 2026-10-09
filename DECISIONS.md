@@ -40,7 +40,8 @@ Every decision made on the owner's behalf, with a one-line reason. Newest last w
 | # | Decision | Reason |
 |---|---|---|
 | D1 | One system bot (Administrator) creates and runs the server; agents post through per-channel webhooks with their own name and avatar. Dedicated per-agent bot apps are an optional later upgrade | Discord's API can't create applications or bots, and bots can't create servers, so the owner makes the server and one app; webhooks need no extra owner setup. Cost: agents can't add reactions or show typing until they have their own bots. |
-| D2 | Spectators can't post in agent channels, and agent bots are denied View Channel on #spectator-chat | Isolation enforced by Discord permissions, not by code. |
+| D2 | Spectators (@everyone) are read-only in the world channels; #spectator-chat is the only human channel. Agents only ever read an allowlist of world channel IDs, so #spectator-chat is never read. | Agents post through webhooks and read through the single system bot, which needs Administrator to manage the server, so isolation is enforced in code (channel allowlist) rather than by a permission deny. |
+| D3 | Setup is a re-runnable script (`discord/setup/setup_server.py`); channel IDs, webhook URLs and the invite code are stored in the `agentcraft/discord` secret | Re-running reconciles the server and leaves it unchanged if nothing has drifted; webhook URLs are credentials, so they never go in git. |
 
 ## Repository
 

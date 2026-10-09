@@ -12,8 +12,9 @@ Phase 0.3: waiting on the owner's one-batch answers (AWS bootstrap, network allo
 
 ## Blocked
 - ~~Bedrock quotas~~ solved: use the `bedrock-mantle` endpoint (see DECISIONS L7). Still to confirm: mantle usage shows as credit-covered in Cost Explorer (check 2026-10-10).
-- Discord: owner to create the server and the System bot app, and store its token in Secrets Manager `agentcraft/discord`.
-- Bedrock: account verification pending (normally < 2 h). Re-test: `aws bedrock-runtime converse --profile agentcraft --region eu-north-1 --model-id openai.gpt-oss-20b-1:0 ...`
+
+## Discord
+Server set up 2026-10-09. Spectator invite: https://discord.gg/pHYaWcVD2A
 
 ## Next
 1. AWS login done (profile `agentcraft`, eu-north-1, Free plan, $100 credit). Owner: Discord bots, network allowlist, checklist answers.
