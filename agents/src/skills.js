@@ -338,7 +338,11 @@ export const SKILLS = {
   build_shelter: {
     describe: 'build_shelter {material:"oak_planks|cobblestone|...", size?:5, x?,z?}: a small closed hut with a roof and a door gap',
     async run(bot, a) {
-      const mat = a.material || 'oak_planks';
+      let mat = a.material || 'oak_planks';
+      if (mat.endsWith('planks') && count(bot, mat) === 0) { // any wood will do
+        const best = bot.inventory.items().filter((i) => i.name.endsWith('_planks')).sort((x, y) => count(bot, y.name) - count(bot, x.name))[0];
+        if (best) mat = best.name;
+      }
       const size = Math.min(Math.max(Number(a.size) || 5, 4), 7);
       const need = (size * 4 - 4) * 3 + size * size - 2;
       if (count(bot, mat) < need) throw new SkillError(`need about ${need} ${mat}, have ${count(bot, mat)}`);
@@ -542,7 +546,13 @@ const dbg = (...x) => { if (process.env.DEBUG_SKILLS) console.log('[craft]', ...
 async function craft(bot, a, depth = 0) {
   if (depth > 3) throw new SkillError('crafting chain too deep');
   const reg = bot.registry;
-  const name = String(a.item).replace(/^minecraft:/, '').toLowerCase().replace(/\s+/g, '_');
+  let name = String(a.item).replace(/^minecraft:/, '').toLowerCase().replace(/\s+/g, '_');
+  // Models say "oak_planks" (or just "planks") whatever wood they hold: use the wood they have.
+  if (name === 'planks' || (name.endsWith('_planks') && !count(bot, name.replace(/_planks$/, '_log')))) {
+    const log = bot.inventory.items().find((i) => i.name.endsWith('_log') || i.name.endsWith('_stem'));
+    if (log) name = log.name.replace(/_(log|stem)$/, '_planks');
+    else if (name === 'planks') name = 'oak_planks';
+  }
   const item = reg.itemsByName[name];
   if (!item) throw new SkillError(`unknown item '${a.item}'`);
   const n = Math.min(Math.max(Number(a.count) || 1, 1), 64);

@@ -52,6 +52,16 @@ export class Chat {
     return !!openDb().prepare("SELECT 1 FROM chat WHERE author=? AND channel=? AND ts>? AND kind='message' LIMIT 1").get(this.name, channel, now() - ms);
   }
 
+  lastPostTs() {
+    return openDb().prepare("SELECT COALESCE(MAX(ts),0) t FROM chat WHERE author=? AND kind='message'").get(this.name).t;
+  }
+
+  postsSince(ts) {
+    return openDb().prepare("SELECT COUNT(*) n FROM chat WHERE author=? AND ts>? AND kind='message'").get(this.name, ts).n;
+  }
+
+  drop(why, text) { console.log(new Date().toISOString(), `[${this.id}] held back (${why}): ${text.slice(0, 80)}`); }
+
   postsLastHour() {
     return openDb().prepare("SELECT COUNT(*) n FROM chat WHERE author=? AND ts>? AND kind='message'").get(this.name, now() - 3600_000).n;
   }
@@ -105,9 +115,17 @@ export class Chat {
       // #town-hall is only for decisions: anything else posted there moves to #general.
       else if (channel === 'town-hall' && !civicTalk) channel = 'general';
       const text = this.clean(it.text);
-      if (!text || this.isRepeat(text)) continue;
+      if (!text) continue;
+      if (this.isRepeat(text)) { this.drop('repeat', text); continue; }
       if (it.reply_to_id && openDb().prepare('SELECT author FROM chat WHERE id=?').get(it.reply_to_id)?.author === this.name) it.reply_to_id = null;
-      if (this.postsLastHour() >= cap) break;
+      // Pace posts across the hour instead of spending the whole cap in one burst and going silent:
+      // a fresh remark needs ~60% of the average gap since our last post; a reply can come sooner,
+      // but never more than 3 posts in 10 minutes.
+      const gapMs = (3600_000 / cap) * 0.6;
+      const sinceLast = now() - this.lastPostTs();
+      if (this.postsLastHour() >= cap) { this.drop('hourly cap', text); break; }
+      if (this.postsSince(now() - 600_000) >= 3) { this.drop('burst', text); break; }
+      if (!it.reply_to_id && sinceLast < gapMs) { this.drop(`gap ${Math.round(sinceLast / 1000)}s`, text); continue; }
       // Human pacing: think, then type.
       const typing = Math.min(text.length / config.discord.typingCharsPerSecond, 14);
       await sleep((config.discord.minGapSeconds + Math.random() * 4 + typing) * 1000);

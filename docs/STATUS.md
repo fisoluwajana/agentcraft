@@ -7,7 +7,7 @@ Last updated: 2026-10-09
 
 **2026-10-09 14:50 UTC:** host `i-0cb599210330eab12` (m7i-flex.large Spot) running all three agents (always-on). Backup to S3 verified and restore test passed (`ops/host/agentcraft-restore-test.sh`). Phase 0 done; Phase 1 built and live; Phase 2/3 testing and tuning in progress.
 
-Chat tuning state (from real Discord output): mining fixed (agents were muted by the progress throttle while mining failed), catchphrase cooldown, reworded-repeat filter, no-narration rule. Channel spread was still poor (last 3 h: 37 #general, 2 #town-hall, 0 #off-topic/#builds, 0 votes), so #off-topic and #builds nudges are now direct instructions (D6). Check counts with the node/sqlite one-liner in HANDOFF.
+Chat tuning state (from real Discord output): mining fixed (agents were muted by the progress throttle while mining failed), catchphrase cooldown, reworded-repeat filter, no-narration rule. Channel spread was still poor (last 3 h: 37 #general, 2 #town-hall, 0 #off-topic/#builds, 0 votes), so #off-topic and #builds nudges are now direct instructions (D6). Silences were the hourly post cap being spent in bursts; posts are now paced (D7). Agent logs show `held back (reason)` for every dropped line. Check counts with the node/sqlite one-liner in HANDOFF.
 
 ## Done
 - 0.1 Environment checked. Blocked in the build session: discord.com, gateway.discord.gg, cdn.discordapp.com, api/fill/fill-data.papermc.io, piston-meta/piston-data.mojang.com, libraries.minecraft.net, registry.terraform.io (plus Hetzner, Oracle, Tailscale and OpenAI, none of which are needed now). All AWS endpoints, Bedrock included, are reachable.
@@ -39,6 +39,7 @@ Server set up 2026-10-09. Spectator invite: https://discord.gg/pHYaWcVD2A
 Read this file and DECISIONS.md, then check `env | grep ^AWS_` and `aws sts get-caller-identity`.
 
 ## Known issues / to verify
+- Craft/build with the wrong wood type ("oak_planks" while holding birch) is now mapped to the wood held.
 - Coal is rarely found exposed; agents may need cave/explore logic.
 - Smelting uses furnace windows; may hit the same Mineflayer window bug as crafting tables. Check in the soak test; add an RCON fallback if so.
 - Paper says 'Connection throttled' when agents connect within ~4 s of each other; agents retry after 15 s. Consider `connection-throttle: -1` in bukkit.yml.
