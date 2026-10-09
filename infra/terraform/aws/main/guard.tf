@@ -85,8 +85,10 @@ resource "aws_lambda_permission" "sns" {
 
 locals {
   budgets = {
-    hosting = { amount = var.hosting_budget_usd, filter = "NotEquals" }
-    llm     = { amount = var.llm_budget_usd, filter = "Equals" }
+    # Budgets can't express "everything except Bedrock" with a simple filter, so the
+    # hosting ceiling is enforced as total = hosting + LLM, alongside a Bedrock-only budget.
+    total = { amount = var.hosting_budget_usd + var.llm_budget_usd, filter = "None" }
+    llm   = { amount = var.llm_budget_usd, filter = "Equals" }
   }
 }
 

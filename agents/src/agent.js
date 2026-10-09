@@ -2,7 +2,6 @@
 // Event-driven: the LLM is only called when something meaningful happens.
 import mineflayer from 'mineflayer';
 import pf from 'mineflayer-pathfinder';
-import collectBlock from 'mineflayer-collectblock';
 import toolPlugin from 'mineflayer-tool';
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 import { readFileSync, existsSync } from 'node:fs';
@@ -77,7 +76,6 @@ class Agent {
         version: config.minecraft.version, auth: 'offline', hideErrors: true, checkTimeoutInterval: 60_000,
       });
       bot.loadPlugin(pf.pathfinder);
-      bot.loadPlugin(collectBlock.plugin);
       bot.loadPlugin(toolPlugin.plugin);
       bot.once('spawn', () => { setupMovements(bot); resolve(bot); });
       bot.once('error', reject);
@@ -135,7 +133,9 @@ class Agent {
   shouldDecide() {
     const gap = (now() - this.lastDecision) / 1000;
     const urgent = this.events.some((e) => e.urgent);
-    if (gap < config.budgets.minSecondsBetweenAgentCalls) return false;
+    // Back off after consecutive failed plans so a stuck agent doesn't burn a call every 20 s.
+    const minGap = config.budgets.minSecondsBetweenAgentCalls * Math.min(2 ** (this.failStreak || 0), 8);
+    if (gap < minGap) return false;
     if (urgent) return true;
     if (this.busy) return false;
     if (this.events.length) return true;
@@ -185,8 +185,9 @@ class Agent {
         const before = invCounts(this.bot);
         try {
           const res = await withTimeout(SKILLS[step.skill].run(this.bot, step.args || {}, this.ctxApi()), 180_000, step.skill)
-            .catch((e) => { try { this.bot.pathfinder.stop(); this.bot.collectBlock?.cancelTask?.(); } catch { /* ignore */ } throw e; });
+            .catch((e) => { try { this.bot.pathfinder.stop(); this.bot.stopDigging?.(); } catch { /* ignore */ } throw e; });
           log(`✓ ${step.skill}: ${res.summary}`);
+          this.failStreak = 0;
           this.push('done', `${step.skill}: ${res.summary}`);
           const gainedAny = res.gained && Object.values(res.gained).some((v) => v > 0);
           if (gainedAny || res.built || ['store', 'give', 'mark', 'craft', 'smelt'].includes(step.skill)) this.progress(res.summary);
@@ -194,6 +195,7 @@ class Agent {
         } catch (e) {
           const msg = e instanceof SkillError ? e.message : `${e.message}`.slice(0, 160);
           log(`✗ ${step.skill}: ${msg}`);
+          this.failStreak = (this.failStreak || 0) + 1;
           this.push('failed', `${step.skill} failed: ${msg}`, true);
           break;
         }

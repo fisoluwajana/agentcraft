@@ -4,7 +4,9 @@
   "private": true,
   "description": "Autonomous AI agents playing Minecraft and talking in Discord",
   "type": "module",
-  "engines": { "node": ">=22.13" },
+  "engines": {
+    "node": ">=22.13"
+  },
   "scripts": {
     "agent": "node agents/src/agent.js",
     "ops": "node ops/main.js",
@@ -20,7 +22,6 @@
     "@smithy/signature-v4": "5.7.4",
     "minecraft-data": "3.117.0",
     "mineflayer": "4.39.0",
-    "mineflayer-collectblock": "1.6.0",
     "mineflayer-pathfinder": "2.4.5",
     "mineflayer-tool": "1.2.0",
     "rcon-client": "4.2.5",

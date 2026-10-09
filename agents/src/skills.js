@@ -2,7 +2,9 @@
 // Each returns { ok, summary, gained? } so the brain can tell what changed.
 import pf from 'mineflayer-pathfinder';
 import { Vec3 } from 'vec3';
+import { Rcon } from 'rcon-client';
 import { openDb, now } from '../lib/db.js';
+import { config } from '../lib/config.js';
 
 const { goals, Movements } = pf;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -26,7 +28,23 @@ function diff(before, after) {
 const count = (bot, name) => bot.inventory.items().filter((i) => i.name === name).reduce((n, i) => n + i.count, 0);
 
 function poi(name) {
-  return openDb().prepare('SELECT * FROM pois WHERE lower(name)=lower(?)').get(name);
+  const db = openDb();
+  return db.prepare('SELECT * FROM pois WHERE lower(name)=lower(?)').get(name)
+    || db.prepare("SELECT * FROM pois WHERE lower(name) LIKE '%' || lower(?) || '%' OR lower(?) LIKE '%' || lower(name) || '%' ORDER BY ts DESC").get(name, name);
+}
+
+// Models refer to places loosely: "coal at 9,110,26", "Tobin", "the quarry". Resolve them.
+function resolvePlace(bot, text) {
+  const t = String(text || '');
+  const nums = t.match(/-?\d+(?:\.\d+)?/g);
+  if (nums && nums.length >= 2) {
+    const [x, y, z] = nums.length >= 3 ? nums.map(Number) : [Number(nums[0]), null, Number(nums[1])];
+    return { x, y, z };
+  }
+  const player = Object.keys(bot.players).find((n) => n.toLowerCase() === t.toLowerCase().replace(/^@/, ''));
+  if (player && bot.players[player].entity) return { ...bot.players[player].entity.position };
+  const p = poi(t);
+  return p ? { x: p.x, y: p.y, z: p.z } : null;
 }
 
 async function withTimeout(promise, ms, what) {
@@ -59,11 +77,65 @@ function blockIds(bot, name) {
   return ids;
 }
 
+// Mineflayer 4.39 + Paper 1.21.11: bot.craft(recipe, n>1) times out (updateSlot:0), and crafting-table
+// crafts "succeed" client-side but never happen on the server. So: one batch per call, verify the result
+// against the inventory, and if nothing changed perform the same recipe through RCON (exact ingredients
+// out, result in). Recipe, ingredients and the table requirement are still enforced here.
+async function rconCmd(cmd) {
+  const r = await Rcon.connect({ host: process.env.RCON_HOST || config.minecraft.host, port: config.minecraft.rconPort, password: config.minecraft.rconPassword, timeout: 5000 });
+  try { return await r.send(cmd); } finally { r.end(); }
+}
+
+async function craftViaRcon(bot, recipe) {
+  const reg = bot.registry;
+  const take = recipe.delta.filter((d) => d.count < 0).map((d) => ({ name: reg.items[d.id].name, n: -d.count }));
+  const give = recipe.delta.filter((d) => d.count > 0).map((d) => ({ name: reg.items[d.id].name, n: d.count }));
+  for (const t of take) if (count(bot, t.name) < t.n) throw new SkillError(`missing ${t.n - count(bot, t.name)} ${t.name}`);
+  for (const t of take) {
+    const out = await rconCmd(`clear ${bot.username} minecraft:${t.name} ${t.n}`);
+    if (!/Removed\s+\d+/i.test(out)) throw new SkillError(`couldn't take ${t.name}: ${out}`);
+  }
+  for (const g of give) await rconCmd(`give ${bot.username} minecraft:${g.name} ${g.n}`);
+}
+
+async function craftTimes(bot, recipe, times, table) {
+  const reg = bot.registry;
+  const result = reg.items[recipe.result.id].name;
+  for (let i = 0; i < times; i++) {
+    const before = count(bot, result);
+    try { await withTimeout(bot.craft(recipe, 1, table), 25_000, 'crafting'); } catch { /* fall through to verification */ }
+    await settle(bot, 400);
+    if (count(bot, result) > before) continue;
+    await craftViaRcon(bot, recipe);
+    await settle(bot, 600);
+  }
+}
+
+// Mineflayer's inventory view lags the server after window clicks; give it a moment.
+async function settle(bot, ms = 500) {
+  await sleep(ms);
+  if (bot.currentWindow) { try { bot.closeWindow(bot.currentWindow); } catch { /* ignore */ } await sleep(150); }
+}
+
+function isExposed(bot, p) {
+  for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) {
+    const b = bot.blockAt(p.offset(dx, dy, dz));
+    if (b && (b.name === 'air' || b.name === 'cave_air' || b.name === 'water' || b.boundingBox === 'empty')) return true;
+  }
+  return false;
+}
+
+async function pickUpDrops(bot, near) {
+  await sleep(350);
+  const drops = Object.values(bot.entities).filter((e) => e.name === 'item' && e.position.distanceTo(near) < 5);
+  for (const d of drops.slice(0, 4)) await gotoPos(bot, d.position.x, d.position.y, d.position.z, 0.5, 8_000).catch(() => {});
+}
+
 async function ensureTable(bot) {
   const reg = bot.registry;
   let table = bot.findBlock({ matching: reg.blocksByName.crafting_table.id, maxDistance: 24 });
   if (table) return table;
-  if (count(bot, 'crafting_table') === 0) await craft(bot, { item: 'crafting_table', count: 1 });
+  if (count(bot, 'crafting_table') === 0) await craft(bot, { item: 'crafting_table', count: 1 }, 1);
   await placeNear(bot, 'crafting_table');
   table = bot.findBlock({ matching: reg.blocksByName.crafting_table.id, maxDistance: 6 });
   if (!table) throw new SkillError('placed a crafting table but lost track of it');
@@ -116,10 +188,15 @@ export const SKILLS = {
     describe: 'goto {x,z,y?} or {poi:"name"} or {player:"Name"}: walk somewhere',
     async run(bot, a) {
       let x = a.x, y = a.y, z = a.z;
-      if (a.poi) { const p = poi(a.poi); if (!p) throw new SkillError(`no place called '${a.poi}' on the map`); ({ x, y, z } = p); }
-      if (a.player) { const e = bot.players[a.player]?.entity; if (!e) throw new SkillError(`can't see ${a.player}`); ({ x, y, z } = e.position); }
+      for (const key of ['poi', 'player', 'place', 'target', 'name']) {
+        if (a[key] != null && x == null) {
+          const r = resolvePlace(bot, a[key]);
+          if (!r) throw new SkillError(`don't know where '${a[key]}' is (not on the map, not a visible player); use x,z coordinates`);
+          ({ x, y, z } = r);
+        }
+      }
       if (x == null || z == null) throw new SkillError('goto needs x and z, a poi or a player');
-      if (y != null && (y < -60 || y > 300 || (!a.poi && !a.player && y <= 0))) y = null; // models often send y:0 meaning 'any height'
+      if (y != null && (y < -60 || y > 300 || y <= 0)) y = null; // models often send y:0 meaning 'any height'
       await gotoPos(bot, x, y, z, 2);
       return { ok: true, summary: `walked to ${Math.round(x)},${Math.round(z)}` };
     },
@@ -146,27 +223,34 @@ export const SKILLS = {
   },
 
   collect: {
-    describe: 'collect {block:"oak_log|log|stone|coal_ore|iron_ore|sand|dirt|...", count}: find and mine blocks nearby',
+    describe: 'collect {block:"log|stone|coal_ore|iron_ore|sand|dirt|...", count}: mine exposed blocks nearby (walks there, mines with the right tool, picks up drops)',
     async run(bot, a) {
-      const want = Math.min(Math.max(Number(a.count) || 8, 1), 64);
+      const want = Math.min(Math.max(Number(a.count) || 8, 1), 32);
       const ids = blockIds(bot, a.block);
       const before = invCounts(bot);
-      let got = 0, misses = 0;
-      while (got < want && misses < 2) {
-        const positions = bot.findBlocks({ matching: ids, maxDistance: 96, count: Math.min(want - got, 8) });
-        if (!positions.length) break;
-        const targets = positions.map((p) => bot.blockAt(p)).filter(Boolean);
+      const tried = new Set();
+      let failures = 0;
+      const gainedTotal = () => Object.values(diff(before, invCounts(bot))).filter((v) => v > 0).reduce((s, v) => s + v, 0);
+      while (gainedTotal() < want && failures < 4) {
+        const me = bot.entity.position;
+        const target = bot.findBlocks({ matching: ids, maxDistance: 64, count: 64 })
+          .filter((p) => !tried.has(p.toString()) && Math.abs(p.y - me.y) <= 8 && isExposed(bot, p))
+          .sort((p, q) => p.distanceTo(me) - q.distanceTo(me))[0];
+        if (!target) break;
+        tried.add(target.toString());
         try {
-          await withTimeout(bot.collectBlock.collect(targets.slice(0, 4), { ignoreNoPath: true }), 60_000, 'mining');
-        } catch { misses++; }
-        const g = diff(before, invCounts(bot));
-        const n = Object.values(g).filter((v) => v > 0).reduce((s, v) => s + v, 0);
-        if (n === got) misses++;
-        got = n;
+          await gotoPos(bot, target.x, target.y, target.z, 3, 45_000);
+          const block = bot.blockAt(target);
+          if (!block || !ids.includes(block.type)) continue;
+          if (!bot.canDigBlock(block)) { failures++; continue; }
+          await bot.tool.equipForBlock(block, {}).catch(() => {});
+          await withTimeout(bot.dig(block, true), 20_000, 'digging');
+          await pickUpDrops(bot, target);
+        } catch { failures++; }
       }
       const gained = diff(before, invCounts(bot));
-      if (!Object.keys(gained).length) throw new SkillError(`couldn't find or mine any ${a.block} within ~90 blocks; explore somewhere else first`);
-      return { ok: true, summary: `mined ${Object.entries(gained).map(([k, v]) => `${v} ${k}`).join(', ')}`, gained };
+      if (!Object.values(gained).some((v) => v > 0)) throw new SkillError(`couldn't get any ${a.block}: none exposed and reachable within ~60 blocks (or no tool for it); explore elsewhere or craft a better pickaxe`);
+      return { ok: true, summary: `mined ${Object.entries(gained).filter(([, v]) => v > 0).map(([k, v]) => `${v} ${k}`).join(', ')}`, gained };
     },
   },
 
@@ -182,7 +266,7 @@ export const SKILLS = {
       const n = Math.min(Number(a.count) || 4, 16);
       let furnaceBlock = bot.findBlock({ matching: reg.blocksByName.furnace.id, maxDistance: 24 });
       if (!furnaceBlock) {
-        if (!count(bot, 'furnace')) await craft(bot, { item: 'furnace', count: 1 });
+        if (!count(bot, 'furnace')) await craft(bot, { item: 'furnace', count: 1 }, 1);
         await placeNear(bot, 'furnace');
         furnaceBlock = bot.findBlock({ matching: reg.blocksByName.furnace.id, maxDistance: 6 });
       }
@@ -407,37 +491,56 @@ export const SKILLS = {
   },
 };
 
-async function craft(bot, a) {
+const dbg = (...x) => { if (process.env.DEBUG_SKILLS) console.log('[craft]', ...x); };
+
+async function craft(bot, a, depth = 0) {
+  if (depth > 3) throw new SkillError('crafting chain too deep');
   const reg = bot.registry;
-  const name = String(a.item).replace(/^minecraft:/, '');
+  const name = String(a.item).replace(/^minecraft:/, '').toLowerCase().replace(/\s+/g, '_');
   const item = reg.itemsByName[name];
   if (!item) throw new SkillError(`unknown item '${a.item}'`);
   const n = Math.min(Math.max(Number(a.count) || 1, 1), 64);
   const before = invCounts(bot);
-  // Auto-make planks/sticks from logs when a recipe is missing them.
-  const tryRecipes = async (table) => bot.recipesFor(item.id, null, 1, table);
-  let recipes = await tryRecipes(null);
+  const tableBlock = () => bot.findBlock({ matching: reg.blocksByName.crafting_table.id, maxDistance: 24 });
+
+  // 1) Inventory (2x2) recipe available right now?
+  let recipe = bot.recipesFor(item.id, null, 1, null)[0];
   let table = null;
-  if (!recipes.length) {
-    const needsTable = bot.recipesAll(item.id, null, true).length > 0;
-    if (needsTable) { table = await ensureTable(bot); await gotoPos(bot, table.position.x, table.position.y, table.position.z, 2); recipes = await tryRecipes(table); }
+  // 2) Otherwise a crafting-table recipe with what we hold?
+  if (!recipe) {
+    table = tableBlock();
+    if (table) recipe = bot.recipesFor(item.id, null, 1, table)[0];
   }
-  if (!recipes.length && name !== 'oak_planks' && !name.endsWith('_planks')) {
-    // try making planks/sticks first
-    const log = bot.inventory.items().find((i) => i.name.endsWith('_log'));
+  // 3) Still nothing: make planks and sticks from logs, then retry.
+  if (!recipe && !name.endsWith('_planks')) {
+    const log = bot.inventory.items().find((i) => i.name.endsWith('_log') || i.name.endsWith('_stem'));
     if (log) {
-      const plank = reg.itemsByName[log.name.replace('_log', '_planks')];
-      const pr = bot.recipesFor(plank.id, null, 1, null)[0];
-      if (pr) await bot.craft(pr, Math.min(log.count, 4), null);
-      if (name !== 'stick') { const sr = bot.recipesFor(reg.itemsByName.stick.id, null, 1, null)[0]; if (sr && count(bot, 'stick') < 4) await bot.craft(sr, 1, null); }
-      recipes = await tryRecipes(table);
+      const plank = reg.itemsByName[log.name.replace(/_(log|stem)$/, '_planks')];
+      const pr = plank && bot.recipesFor(plank.id, null, 1, null)[0];
+      if (pr) { await craftTimes(bot, pr, Math.min(log.count, 3), null); }
+      if (name !== 'stick' && count(bot, 'stick') < 4) { const sr = bot.recipesFor(reg.itemsByName.stick.id, null, 1, null)[0]; if (sr) { await craftTimes(bot, sr, 1, null); } }
+      recipe = bot.recipesFor(item.id, null, 1, null)[0];
+      if (!recipe && table) recipe = bot.recipesFor(item.id, null, 1, table)[0];
     }
   }
-  if (!recipes.length) throw new SkillError(`missing materials for ${name}`);
-  const perCraft = recipes[0].result.count;
-  await bot.craft(recipes[0], Math.ceil(n / perCraft), table);
+  // 4) Needs a table we don't have: craft/place one (never for the table itself).
+  if (!recipe && name !== 'crafting_table' && bot.recipesAll(item.id, null, true).length) {
+    if (!table) {
+      if (!count(bot, 'crafting_table')) await craft(bot, { item: 'crafting_table', count: 1 }, depth + 1);
+      await placeNear(bot, 'crafting_table');
+      await settle(bot);
+      table = tableBlock();
+    }
+    if (table) recipe = bot.recipesFor(item.id, null, 1, table)[0];
+  }
+  dbg(name, 'recipe', !!recipe, 'table', table?.position?.toString(), 'dist', table ? table.position.distanceTo(bot.entity.position).toFixed(1) : '-');
+  if (!recipe) throw new SkillError(`missing materials for ${name}`);
+  if (table) await gotoPos(bot, table.position.x, table.position.y, table.position.z, 2);
+  const perCraft = recipe.result.count || 1;
+  await craftTimes(bot, recipe, Math.ceil(n / perCraft), table);
   const gained = diff(before, invCounts(bot));
-  return { ok: true, summary: `crafted ${gained[name] || n} ${name}`, gained };
+  if (!gained[name]) throw new SkillError(`crafting ${name} didn't produce anything`);
+  return { ok: true, summary: `crafted ${gained[name]} ${name}`, gained };
 }
 
 async function findChest(bot, poiName) {
@@ -480,12 +583,13 @@ export function skillIndex() {
 
 export function setupMovements(bot) {
   // Bound the A* search: unbounded searches towards unreachable goals ate 8.7 GB in testing.
-  bot.pathfinder.searchRadius = 128;
+  bot.pathfinder.searchRadius = 96;
   bot.pathfinder.thinkTimeout = 4000;
   bot.pathfinder.tickTimeout = 30;
   const m = new Movements(bot);
   m.allowSprinting = true;
-  m.canDig = true;
+  m.canDig = false;      // walking never digs through terrain: digging made A* searches explode
+  m.maxDropDown = 4;
   m.allow1by1towers = true;
   bot.pathfinder.setMovements(m);
 }
