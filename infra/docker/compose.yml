@@ -6,8 +6,10 @@ x-runtime: &runtime
   image: agentcraft-runtime:latest
   build: { context: ../.., dockerfile: Dockerfile }
   restart: unless-stopped
+  mem_limit: 700m
   environment: &env
     AWS_REGION: eu-north-1
+    NODE_OPTIONS: --max-old-space-size=448
     MC_HOST: minecraft
     RCON_PASSWORD: ${RCON_PASSWORD:?set by user-data}
   volumes:

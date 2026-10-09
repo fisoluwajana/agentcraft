@@ -8,6 +8,7 @@ const { goals, Movements } = pf;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export class SkillError extends Error {}
+export { withTimeout };
 
 function invCounts(bot) {
   const c = {};
@@ -49,7 +50,7 @@ export async function gotoPos(bot, x, y, z, range = 2, timeoutMs = 90_000) {
 function blockIds(bot, name) {
   const reg = bot.registry;
   const n = name.toLowerCase().replace(/^minecraft:/, '').replace(/\s+/g, '_');
-  if (['log', 'logs', 'wood'].includes(n)) return Object.values(reg.blocksByName).filter((b) => b.name.endsWith('_log')).map((b) => b.id);
+  if (['log', 'logs', 'wood', 'tree', 'trees'].includes(n) || n.endsWith('_log') || n.endsWith('_wood')) return Object.values(reg.blocksByName).filter((b) => b.name.endsWith('_log')).map((b) => b.id);
   if (['stone', 'cobblestone'].includes(n)) return ['stone', 'cobblestone'].map((k) => reg.blocksByName[k].id);
   const b = reg.blocksByName[n];
   if (!b) throw new SkillError(`unknown block '${name}'`);
@@ -118,22 +119,29 @@ export const SKILLS = {
       if (a.poi) { const p = poi(a.poi); if (!p) throw new SkillError(`no place called '${a.poi}' on the map`); ({ x, y, z } = p); }
       if (a.player) { const e = bot.players[a.player]?.entity; if (!e) throw new SkillError(`can't see ${a.player}`); ({ x, y, z } = e.position); }
       if (x == null || z == null) throw new SkillError('goto needs x and z, a poi or a player');
+      if (y != null && (y < -60 || y > 300 || (!a.poi && !a.player && y <= 0))) y = null; // models often send y:0 meaning 'any height'
       await gotoPos(bot, x, y, z, 2);
       return { ok: true, summary: `walked to ${Math.round(x)},${Math.round(z)}` };
     },
   },
 
   explore: {
-    describe: 'explore {direction:"north|south|east|west"?, distance?:40-200}: walk out and look around, marking anything interesting',
+    describe: 'explore {direction:"north|south|east|west"?, distance?:40-200, look_for?:"block name"}: walk out in short legs, marking anything interesting; stops early if look_for is spotted',
     async run(bot, a, ctx) {
       const dirs = { north: [0, -1], south: [0, 1], east: [1, 0], west: [-1, 0] };
       const d = dirs[a.direction] || Object.values(dirs)[Math.floor(Math.random() * 4)];
       const dist = Math.min(Math.max(Number(a.distance) || 80, 30), 200);
-      const p = bot.entity.position;
-      await gotoPos(bot, p.x + d[0] * dist, null, p.z + d[1] * dist, 4, 150_000).catch(() => {});
-      const found = scanSurroundings(bot);
-      for (const f of found) ctx.discover(f);
-      return { ok: true, summary: `explored ${Math.round(bot.entity.position.distanceTo(p))} blocks; saw ${found.map((f) => f.kind).join(', ') || 'nothing special'}` };
+      const start = bot.entity.position.clone();
+      const seen = new Map();
+      let spotted = null;
+      for (let leg = 24; leg <= dist && !spotted; leg += 24) {
+        const jitter = (Math.random() - 0.5) * 12;
+        await gotoPos(bot, start.x + d[0] * leg + d[1] * jitter, null, start.z + d[1] * leg + d[0] * jitter, 4, 40_000).catch(() => {});
+        for (const f of scanSurroundings(bot)) if (!seen.has(f.kind)) { seen.set(f.kind, f); ctx.discover(f); }
+        if (a.look_for) { try { const ids = blockIds(bot, a.look_for); if (bot.findBlock({ matching: ids, maxDistance: 64 })) spotted = a.look_for; } catch { /* unknown block */ } }
+      }
+      const moved = Math.round(bot.entity.position.distanceTo(start));
+      return { ok: moved > 10, summary: `explored ${moved} blocks ${a.direction || ''}; saw ${[...seen.keys()].join(', ') || 'nothing special'}${spotted ? `; spotted ${spotted}` : ''}` };
     },
   },
 
@@ -144,12 +152,12 @@ export const SKILLS = {
       const ids = blockIds(bot, a.block);
       const before = invCounts(bot);
       let got = 0, misses = 0;
-      while (got < want && misses < 4) {
-        const positions = bot.findBlocks({ matching: ids, maxDistance: 48, count: Math.min(want - got, 8) });
+      while (got < want && misses < 2) {
+        const positions = bot.findBlocks({ matching: ids, maxDistance: 96, count: Math.min(want - got, 8) });
         if (!positions.length) break;
         const targets = positions.map((p) => bot.blockAt(p)).filter(Boolean);
         try {
-          await withTimeout(bot.collectBlock.collect(targets, { ignoreNoPath: true }), 120_000, 'mining');
+          await withTimeout(bot.collectBlock.collect(targets.slice(0, 4), { ignoreNoPath: true }), 60_000, 'mining');
         } catch { misses++; }
         const g = diff(before, invCounts(bot));
         const n = Object.values(g).filter((v) => v > 0).reduce((s, v) => s + v, 0);
@@ -157,7 +165,7 @@ export const SKILLS = {
         got = n;
       }
       const gained = diff(before, invCounts(bot));
-      if (!Object.keys(gained).length) throw new SkillError(`couldn't find or mine any ${a.block} nearby`);
+      if (!Object.keys(gained).length) throw new SkillError(`couldn't find or mine any ${a.block} within ~90 blocks; explore somewhere else first`);
       return { ok: true, summary: `mined ${Object.entries(gained).map(([k, v]) => `${v} ${k}`).join(', ')}`, gained };
     },
   },
@@ -459,7 +467,7 @@ export function scanSurroundings(bot) {
   }
   for (const e of Object.values(bot.entities)) {
     if (['cow', 'sheep', 'pig', 'chicken'].includes(e.name) && e.position.distanceTo(bot.entity.position) < 24) {
-      found.push({ kind: `${e.name}s`, x: Math.round(e.position.x), y: Math.round(e.position.y), z: Math.round(e.position.z) });
+      found.push({ kind: e.name === 'sheep' ? 'sheep' : `${e.name}s`, x: Math.round(e.position.x), y: Math.round(e.position.y), z: Math.round(e.position.z) });
       break;
     }
   }
@@ -471,6 +479,10 @@ export function skillIndex() {
 }
 
 export function setupMovements(bot) {
+  // Bound the A* search: unbounded searches towards unreachable goals ate 8.7 GB in testing.
+  bot.pathfinder.searchRadius = 128;
+  bot.pathfinder.thinkTimeout = 4000;
+  bot.pathfinder.tickTimeout = 30;
   const m = new Movements(bot);
   m.allowSprinting = true;
   m.canDig = true;

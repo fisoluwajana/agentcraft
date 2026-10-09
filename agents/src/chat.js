@@ -72,7 +72,8 @@ export class Chat {
       if (it.react?.message_id) { await this.reactTo(it.react.message_id, it.react.emoji); continue; }
       const channel = config.discord.worldChannels.includes(it.channel) ? it.channel : 'general';
       const text = this.clean(it.text);
-      if (!text) continue;
+      if (!text || this.isRepeat(text)) continue;
+      if (it.reply_to_id && openDb().prepare('SELECT author FROM chat WHERE id=?').get(it.reply_to_id)?.author === this.name) it.reply_to_id = null;
       if (this.postsLastHour() >= cap) break;
       // Human pacing: think, then type.
       const typing = Math.min(text.length / config.discord.typingCharsPerSecond, 14);
@@ -102,6 +103,15 @@ export class Chat {
       posted++;
     }
     return posted;
+  }
+
+  // Skip near-duplicates of anything we said in the last hour (word-set Jaccard similarity).
+  isRepeat(text) {
+    const words = (t) => new Set(t.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w) => w.length > 2));
+    const a = words(text);
+    if (a.size < 3) return false;
+    const mine = openDb().prepare("SELECT text FROM chat WHERE author=? AND ts>? AND kind='message' ORDER BY id DESC LIMIT 12").all(this.name, now() - 3600_000);
+    return mine.some(({ text: t }) => { const b = words(t); const inter = [...a].filter((w) => b.has(w)).length; return inter / (a.size + b.size - inter) > 0.55; });
   }
 
   async reactTo(chatId, emoji) {

@@ -36,3 +36,7 @@ logs/
 
 # Private persona agendas (spoilers; stored in Secrets Manager)
 agents/personas/private/
+
+# Terraform build output and local bootstrap state
+infra/terraform/**/.build/
+infra/terraform/aws/bootstrap/terraform.tfstate*

@@ -65,6 +65,8 @@ Budgets £15 hosting / £60 LLM per month (~$20 / ~$80) · stop everything when 
 - The build container has **invalid AWS_ACCESS_KEY_ID/SECRET env vars injected by the environment** (not set by the owner). For local Node runs: `unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY; eval "$(aws configure export-credentials --profile agentcraft --format env)"`. The JS SDK can't refresh `aws login` sessions itself. Node's fetch also needs `NODE_USE_ENV_PROXY=1` in the build container.
 - mantle's `response_format: json_object` makes gpt-oss emit garbage; JSON mode is off unless a model sets `jsonMode: true` in config. The output schema in `agents/src/brain.js` must contain no `//` comments (models copy them).
 - Local dev server: Paper container `mc-dev` needs the proxy-aware Java truststore mounted and the Paper/Mojang jars pre-downloaded (PaperMC and Mojang return 403 to Java's downloader through the build proxy). See `server/fetch-paper.sh`.
+- Mineflayer pathfinder must have `searchRadius`/`thinkTimeout` set (see `setupMovements`); an unbounded search used 8.7 GB once. Agents run with `--max-old-space-size=448` and a 700 MB container limit.
+- Plans must never run concurrently (`replacePlan` pre-empts); skills are capped at 180 s each.
 - On mantle, Mistral Large 3 and MiniMax M2.5 hung (>90 s, repeatedly) on 2026-10-09; gpt-oss-120b, Qwen3 235B, GLM-4.7 Flash, Kimi K2.5 respond in 1–26 s.
 
 ## 9. Original brief (owner's spec, verbatim summary of requirements)

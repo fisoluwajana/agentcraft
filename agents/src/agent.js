@@ -12,7 +12,7 @@ import { openDb, now, logEvent, kvGet } from '../lib/db.js';
 import { seasonMinute, seasonLengthMinutes, seasonDay, sleep } from '../lib/time.js';
 import { BudgetExceeded } from '../lib/budget.js';
 import { ops } from '../lib/discord.js';
-import { SKILLS, SkillError, setupMovements, scanSurroundings, invCounts } from './skills.js';
+import { SKILLS, SkillError, setupMovements, scanSurroundings, invCounts, withTimeout } from './skills.js';
 import { Memory } from './memory.js';
 import { Chat } from './chat.js';
 import { decide, applyCivics } from './brain.js';
@@ -161,7 +161,17 @@ class Agent {
     for (const c of applyCivics(P.name, d)) { this.push('civics', c); this.progress(c); }
     if (d.react?.length) for (const r of d.react.slice(0, 2)) await this.chat.reactTo(r.message_id, r.emoji);
     if (d.say.length) this.chat.say(d.say, this.progressLastHour()).catch((e) => log('say failed', e.message));
-    if (d.plan.length) this.runPlan(d.plan);
+    if (d.plan.length) await this.replacePlan(d.plan);
+  }
+
+  // A new plan pre-empts the running one; never let two plans drive the bot at once.
+  async replacePlan(plan) {
+    if (this.planPromise) {
+      this.abort = true;
+      try { this.bot.pathfinder.stop(); this.bot.stopDigging?.(); } catch { /* ignore */ }
+      await Promise.race([this.planPromise, sleep(8000)]);
+    }
+    this.planPromise = this.runPlan(plan).finally(() => { this.planPromise = null; });
   }
 
   async runPlan(plan) {
@@ -174,7 +184,8 @@ class Agent {
           .run(step.skill, now(), step.skill, ID);
         const before = invCounts(this.bot);
         try {
-          const res = await SKILLS[step.skill].run(this.bot, step.args || {}, this.ctxApi());
+          const res = await withTimeout(SKILLS[step.skill].run(this.bot, step.args || {}, this.ctxApi()), 180_000, step.skill)
+            .catch((e) => { try { this.bot.pathfinder.stop(); this.bot.collectBlock?.cancelTask?.(); } catch { /* ignore */ } throw e; });
           log(`✓ ${step.skill}: ${res.summary}`);
           this.push('done', `${step.skill}: ${res.summary}`);
           const gainedAny = res.gained && Object.values(res.gained).some((v) => v > 0);
